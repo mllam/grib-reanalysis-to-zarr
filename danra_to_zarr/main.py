@@ -2,13 +2,12 @@ import shutil
 import tempfile
 from pathlib import Path
 
+import dmidc.harmonie
 import fsspec
 import rechunker
 import xarray as xr
 from loguru import logger
 from zarr.convenience import consolidate_metadata
-
-import dmidc.harmonie
 
 
 def main(fp_out, rechunk_to):

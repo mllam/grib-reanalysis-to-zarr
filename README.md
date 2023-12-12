@@ -59,7 +59,7 @@ sources:
         - entireAtmosphere
 ```
 root:
-    
+
     - danra_2levels_1990to1991
     - danra_full
 
@@ -70,4 +70,3 @@ cat_url = "https://scale-s3.dmi.dk/danra/catalog.yml"
 ds_height_above_ground = intake.open_catalog(cat_url).to_dask(level_type="heightAboveGround")
 da_w = ds_height_above_ground.w
 ```
-
