@@ -5,7 +5,10 @@ description = ""
 authors = [
     {name = "Leif Denby", email = "lcd@dmi.dk"},
 ]
-dependencies = []
+dependencies = [
+    "dmidc[harmonie-grib] @ git+https://gitlab.dmi.dk/nwp/data-catalog@v0.4.0",
+    "rechunker>=0.5.2",
+]
 requires-python = ">=3.9"
 readme = "README.md"
 license = {text = "MIT"}
