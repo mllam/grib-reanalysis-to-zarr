@@ -3,6 +3,7 @@ import tempfile
 from pathlib import Path
 
 import dmidc.harmonie
+import dmidc.utils
 import fsspec
 import rechunker
 import xarray as xr
@@ -10,7 +11,9 @@ from loguru import logger
 from zarr.convenience import consolidate_metadata
 
 
-def main(fp_temp, fp_out, rechunk_to, level_type, variables, levels=None):
+def main(
+    fp_temp, fp_out, analysis_time, rechunk_to, level_type, variables, levels=None
+):
     """
     Produce a zarr store with the given variables and levels, rechunked to the given chunk sizes.
 
@@ -55,7 +58,7 @@ def main(fp_temp, fp_out, rechunk_to, level_type, variables, levels=None):
     for level, var_names in _get_levels_and_variables():
         logger.info(f"loading {var_names} on {level_type} level {level}")
         ds = dmidc.harmonie.load(
-            analysis_time="2013-09-01",
+            analysis_time=analysis_time,
             suite_name="DANRA",
             data_kind="ANALYSIS",
             temp_filepath=fp_temp,
@@ -108,16 +111,34 @@ def main(fp_temp, fp_out, rechunk_to, level_type, variables, levels=None):
     ds_zarr = xr.open_zarr(mapper)
     logger.info(ds_zarr)
 
-    logger.info("done!", flush=True)
+    logger.info(f"{fp_out} done!", flush=True)
 
 
 if __name__ == "__main__":
     level_type = "isobaricInhPa"
     fp_root = Path("/dmidata/projects/cloudphysics/danra")
     fp_tempfiles = fp_root / "tempfiles"
-    fp_out = fp_root / "data" / f"{level_type}.zarr"
     kwargs = dict(variables=["t", "u", "v", "r"], levels=[1000, 900])
     rechunk_to = dict(time=4, x=512, y=512)
+    analysis_time = dmidc.utils.normalise_time_argument(
+        slice("2021-08-01T00:00", "2021-09-01T00:00")
+    )
+
+    def _time_to_str(t):
+        return t.isoformat().replace(":", "").replace("-", "")
+
+    if analysis_time.step is not None:
+        raise NotImplementedError("analysis_time.step must be None")
+
+    name_parts = [
+        "danra",
+        level_type,
+        f"{_time_to_str(analysis_time.start)}-{_time_to_str(analysis_time.stop)}",
+    ]
+
+    fn = f"{'_'.join(name_parts)}.zarr"
+
+    fp_out = fp_root / "data" / fn
 
     import ipdb
 
@@ -125,6 +146,7 @@ if __name__ == "__main__":
         main(
             fp_temp=fp_tempfiles,
             fp_out=fp_out,
+            analysis_time=analysis_time,
             rechunk_to=rechunk_to,
             level_type=level_type,
             **kwargs,
