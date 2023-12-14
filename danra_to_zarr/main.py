@@ -11,7 +11,7 @@ from loguru import logger
 from zarr.convenience import consolidate_metadata
 
 
-def main(
+def create_zarr_dataset(
     fp_temp, fp_out, analysis_time, rechunk_to, level_type, variables, levels=None
 ):
     """
@@ -143,7 +143,7 @@ if __name__ == "__main__":
     import ipdb
 
     with ipdb.launch_ipdb_on_exception():
-        main(
+        create_zarr_dataset(
             fp_temp=fp_tempfiles,
             fp_out=fp_out,
             analysis_time=analysis_time,
