@@ -1,3 +1,4 @@
+import datetime
 import tempfile
 from pathlib import Path
 
@@ -15,6 +16,11 @@ RECHUNK_TO = dict(time=4, x=512, y=512)
 
 def _time_to_str(t):
     return t.isoformat().replace(":", "").replace("-", "")
+
+
+fn_log = f"{_time_to_str(datetime.datetime.now())}.log"
+logger.add(fn_log)
+logger.info(f"Logging to {fn_log}")
 
 
 class ZarrTarget(luigi.Target):
