@@ -3,6 +3,9 @@ from pathlib import Path
 
 import dmidc.utils
 import luigi
+import pandas as pd
+import xarray as xr
+from loguru import logger
 
 from .main import create_zarr_dataset
 
@@ -12,6 +15,21 @@ RECHUNK_TO = dict(time=4, x=512, y=512)
 
 def _time_to_str(t):
     return t.isoformat().replace(":", "").replace("-", "")
+
+
+class ZarrTarget(luigi.Target):
+    def __init__(self, fp):
+        self.fp = fp
+
+    def exists(self):
+        return self.fp.exists()
+
+    def open(self):
+        return xr.open_zarr(self.fp)
+
+    @property
+    def path(self):
+        return self.fp
 
 
 class DanraZarrSubset(luigi.Task):
@@ -59,8 +77,8 @@ class DanraZarrSubset(luigi.Task):
         name_parts = [
             "danra",
             self.level_type,
-            "_".join(self.variables),
-            "_".join([str(level) for level in self.levels]),
+            "_".join(sorted(self.variables)),
+            "_".join([str(level) for level in sorted(self.levels)]),
             f"{_time_to_str(analysis_time.start)}-{_time_to_str(analysis_time.stop)}",
         ]
         identifier = ".".join(name_parts)
@@ -69,4 +87,35 @@ class DanraZarrSubset(luigi.Task):
     def output(self):
         fn = f"{self.identifier}.zarr"
 
-        return luigi.LocalTarget(FP_ROOT / "data" / fn)
+        return ZarrTarget(FP_ROOT / "data" / fn)
+
+
+class DanraZarrSubsetAggregated(DanraZarrSubset):
+    """
+    Aggregate multiple zarr based subsets of DANRA into a single zarr archive
+    """
+
+    t_interval = luigi.TimeDeltaParameter()
+
+    def requires(self):
+        ts = pd.date_range(
+            self.t_start, self.t_end, freq=self.t_interval, inclusive="both"
+        )
+
+        tasks = []
+        for t_start, t_end in zip(ts[:-1], ts[1:]):
+            task = DanraZarrSubset(
+                t_start=t_start,
+                t_end=t_end,
+                variables=self.variables,
+                levels=self.levels,
+                level_type=self.level_type,
+            )
+            tasks.append(task)
+        return tasks
+
+    def run(self):
+        datasets = [inp.open() for inp in self.input()]
+        ds = xr.concat(datasets, dim="time").chunk(RECHUNK_TO)
+        ds.to_zarr(self.output().path)
+        logger.info(f"{self.output().path} done!", flush=True)

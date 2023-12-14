@@ -1,5 +1,23 @@
 # Processing DANRA grib files to zarr
 
+
+## Usage
+
+Create a single zarr-based subset of DANRA with luigi
+
+```bash
+PYTHONPATH=`pwd`:$PYTHONPATH pdm run luigi --module danra_to_zarr.pipeline DanraZarrSubset --t-start 2020-01-01T0000 --t-end 2020-01-02T0000 --variables '["u", "v"]' --levels "[1000, 900]" --level-type isobaricInhPa
+```
+
+If you're aimiing to create a zarr-archive for a long time-window then you can use `DanraZarrSubsetAggregated` to create smaller intermediate zarr archives (the time-interval is set with `t_interval`) before aggregating to a single zarr arhive.
+
+```bash
+PYTHONPATH=`pwd`:$PYTHONPATH pdm run luigi --module danra_to_zarr.pipeline DanraZarrSubset --t-start 20191-01T0000 --t-end 2020-01-01T0000 - --t-interval PT7D -variables '["u", "v"]' --levels "[1000, 900]" --levevel-type isobaricInhPa
+
+```
+
+
+
 ```mermaid
 graph TB
 
