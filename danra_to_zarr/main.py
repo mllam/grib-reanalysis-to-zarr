@@ -1,5 +1,4 @@
 import shutil
-import tempfile
 from pathlib import Path
 
 import dmidc.harmonie
@@ -91,16 +90,14 @@ def create_zarr_dataset(
 
     target_store = mapper
 
-    with tempfile.TemporaryDirectory() as temp_dir:
-
-        r = rechunker.rechunk(
-            ds,
-            target_chunks=target_chunks,
-            max_mem="1GB",
-            target_store=target_store,
-            temp_store=temp_dir,
-        )
-        r.execute()
+    r = rechunker.rechunk(
+        ds,
+        target_chunks=target_chunks,
+        max_mem="1GB",
+        target_store=target_store,
+        temp_store=fp_temp,
+    )
+    r.execute()
 
     # we have to explicitly consolidate the metadata, since rechunker doesn't do it for us
     # https://github.com/pangeo-data/rechunker/issues/114#issuecomment-1122671510
