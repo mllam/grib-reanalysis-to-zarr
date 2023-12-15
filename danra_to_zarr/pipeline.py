@@ -104,9 +104,29 @@ class DanraZarrSubsetAggregated(DanraZarrSubset):
     t_interval = luigi.TimeDeltaParameter()
 
     def requires(self):
-        ts = pd.date_range(
-            self.t_start, self.t_end, freq=self.t_interval, inclusive="both"
-        )
+        # if the timespan is greater than a year then we need to ensure that we
+        # always start on the first of january so that we can reuse blocks of
+        # data we're already done
+
+        t0 = self.t_start
+
+        ts = []
+        while t0 < self.t_end:
+            if t0.year != self.t_end.year:
+                t_startof_next_year = datetime.datetime(t0.year + 1, 1, 1)
+                ts += list(
+                    pd.date_range(
+                        t0, t_startof_next_year, freq=self.t_interval, inclusive="both"
+                    )
+                )
+                t0 = t_startof_next_year
+            else:
+                ts += list(
+                    pd.date_range(
+                        t0, self.t_end, freq=self.t_interval, inclusive="both"
+                    )
+                )
+                t0 = self.t_end
 
         tasks = []
         for t_start, t_end in zip(ts[:-1], ts[1:]):
@@ -118,6 +138,7 @@ class DanraZarrSubsetAggregated(DanraZarrSubset):
                 level_type=self.level_type,
             )
             tasks.append(task)
+
         return tasks
 
     def run(self):

@@ -93,7 +93,7 @@ def create_zarr_dataset(
     r = rechunker.rechunk(
         ds,
         target_chunks=target_chunks,
-        max_mem="1GB",
+        max_mem="4GB",
         target_store=target_store,
         temp_store=fp_temp,
     )
