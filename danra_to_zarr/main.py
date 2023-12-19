@@ -56,15 +56,19 @@ def create_zarr_dataset(
 
     for level, var_names in _get_levels_and_variables():
         logger.info(f"loading {var_names} on {level_type} level {level}")
-        ds = dmidc.harmonie.load(
-            analysis_time=analysis_time,
-            suite_name="DANRA",
-            data_kind="ANALYSIS",
-            temp_filepath=fp_temp,
-            short_name=var_names,
-            level_type=level_type,
-            level=level,
-        )
+        try:
+            ds = dmidc.harmonie.load(
+                analysis_time=analysis_time,
+                suite_name="DANRA",
+                data_kind="ANALYSIS",
+                temp_filepath=fp_temp,
+                short_name=var_names,
+                level_type=level_type,
+                level=level,
+            )
+        except Exception as ex:
+            logger.error(ex)
+            raise
         ds.coords["level"] = level
         datasets.append(ds)
 
