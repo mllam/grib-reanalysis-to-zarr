@@ -9,9 +9,9 @@ FP_ROOT = Path("/dmidata/projects/cloudphysics/danra")
 
 
 DATA_COLLECTION = dict(
-    description="first run of task for creating part of full dataset",
+    description="Full dataset period for all variables on reduced levels",
     rechunk_to=dict(time=4, x=512, y=512),
-    timespan=slice("2015-01-01", "2015-02-01"),
+    timespan=slice("1990-09-01", "2020-09-01"),
     parts=dict(
         height_levels=dict(
             heightAboveGround=dict(

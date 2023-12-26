@@ -1,6 +1,6 @@
 [project]
 name = "danra_to_zarr"
-version = "0.1.0"
+version = "0.2.0"
 description = "Process DANRA GRIB files to Zarr"
 authors = [
     {name = "Leif Denby", email = "lcd@dmi.dk"},
