@@ -88,10 +88,11 @@ class DanraZarrCollection(luigi.Task):
                 "gridType",
                 "missingValue",
                 "numberOfPoints",
+                "paramId",
             ]:
                 if attr in ds_part[var_name].attrs:
                     del ds_part[var_name].attrs[attr]
-            ds_part[var_name].attrs["long_name"] = ds_part[var_name].attrs["name"]
+            ds_part[var_name].attrs["long_name"] = ds_part[var_name].attrs.pop("name")
         part_output.write(ds_part)
         consolidate_metadata(part_output.path)
 
