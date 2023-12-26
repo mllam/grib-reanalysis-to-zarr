@@ -1,7 +1,7 @@
 [project]
-name = ""
-version = ""
-description = ""
+name = "danra_to_zarr"
+version = "0.1.0"
+description = "Process DANRA GRIB files to Zarr"
 authors = [
     {name = "Leif Denby", email = "lcd@dmi.dk"},
 ]
@@ -25,3 +25,7 @@ dev = [
     "pre-commit>=3.6.0",
     "ipdb>=0.13.13",
 ]
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
