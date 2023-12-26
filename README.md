@@ -3,13 +3,19 @@
 
 ## Usage
 
+Create a full dataset collection for DANRA (remember to edit [danra_to_zarr/pipeline/config.py](danra_to_zarr/pipeline/config.py) to add a configuration for this dataset):
+
+```
+PYTHONPATH=`pwd`:$PYTHONPATH pdm run luigi --module danra_to_zarr.pipeline DanraCompleteZarrCollection --version v0.1.0
+```
+
 Create a single zarr-based subset of DANRA with luigi
 
 ```bash
 PYTHONPATH=`pwd`:$PYTHONPATH pdm run luigi --module danra_to_zarr.pipeline DanraZarrSubset --t-start 2020-01-01T0000 --t-end 2020-01-02T0000 --variables '["u", "v", "r", "t"]' --levels "[1000, 900]" --level-type isobaricInhPa
 ```
 
-If you're aimiing to create a zarr-archive for a long time-window then you can use `DanraZarrSubsetAggregated` to create smaller intermediate zarr archives (the time-interval is set with `t_interval`) before aggregating to a single zarr arhive.
+If you're aiming to create a zarr-archive for a long time-window then you can use `DanraZarrSubsetAggregated` to create smaller intermediate zarr archives (the time-interval is set with `t_interval`) before aggregating to a single zarr arhive.
 
 ```bash
 PYTHONPATH=`pwd`:$PYTHONPATH pdm run luigi --module danra_to_zarr.pipeline DanraZarrSubsetAggregated --t-start 2019-01-01T0000 --t-end 2020-01-01T0000 --t-interval P7D --variables '["u", "v", "r", "t"]' --levels "[1000, 900]" --levevel-type isobaricInhPa
@@ -19,35 +25,7 @@ PYTHONPATH=`pwd`:$PYTHONPATH pdm run luigi --module danra_to_zarr.pipeline Danra
 
 ## Data overview
 
-
-
-```mermaid
-graph TB
-
-```
-
-
-```yaml
-level_types:
-  5: adiabaticCondensation
-  8: nominalTop
-  20: unknown
-  100: isobaricInhPa
-  103: heightAboveSea
-  105: heightAboveGround
-  200: entireAtmosphere
-```
-
-### Questions to answer:
-
-1. Do we want to include all level-types?
-2. What is level-type with id 20?
-
-How to build up extraction process over smaller steps:
-
-- what would be a complete extraction?
-    - [ ] create table with all variables and levels for each level-type
-- how longer does it take to do a complete extraction for say a full days worth of data?
+See [variables_levels_overview.md](variables_levels_overview.md) for an overview of all variables, and the levels and level types they're on.
 
 ### Steps for extraction:
 
@@ -63,31 +41,26 @@ How to build up extraction process over smaller steps:
 description: "DANRA reanalysis data zarr extraction datasets"
 
 sources:
-  danra_2levels_1990to1991:
+  danra:
     description: "DANRA reanalysis data zarr extraction datasets"
     driver: intake_xarray.xzarr.ZarrSource
     args:
-      urlpath: "https://scale-s3.dmi.dk/danra_2levels_1990to1991/{level_type}.zarr"
+      urlpath: "https://scale-s3.dmi.dk/danra/{version}/{part_id}.zarr"
       storage_options:
         anon: true
     metadata:
-      level_types:
-        - adiabaticCondensation
-        - nominalTop
-        - isobaricInhPa
-        - heightAboveSea
-        - heightAboveGround
-        - entireAtmosphere
+      part_id:
+        - height_levels
+        - pressure_levels
+        - single_levels
+      version:
+        - v0.1.0
 ```
-root:
-
-    - danra_2levels_1990to1991
-    - danra_full
 
 ```python
 import intake
 
 cat_url = "https://scale-s3.dmi.dk/danra/catalog.yml"
-ds_height_above_ground = intake.open_catalog(cat_url).to_dask(level_type="heightAboveGround")
-da_w = ds_height_above_ground.w
+ds_height_levels = intake.open_catalog(cat_url).to_dask(version="v0.1.0", part_id="height_levels")
+da_u = ds_height_levels.u
 ```

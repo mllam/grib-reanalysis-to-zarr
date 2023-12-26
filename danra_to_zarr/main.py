@@ -77,6 +77,10 @@ def create_zarr_dataset(
     # TODO: this should really be done in dmidc.harmonie.load
     if level_type == "isobaricInhPa":
         ds.coords["level"].attrs["units"] = "hPa"
+    elif level_type in ["heightAboveGround", "heightAboveSea"]:
+        ds.coords["level"].attrs["units"] = "m"
+    elif level_type in ["entireAtmosphere", "nominalTop", "surface"]:
+        pass
     else:
         raise NotImplementedError(level_type)
 

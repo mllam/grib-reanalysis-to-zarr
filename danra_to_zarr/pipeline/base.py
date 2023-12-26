@@ -8,10 +8,8 @@ import pandas as pd
 import xarray as xr
 from loguru import logger
 
-from .main import create_zarr_dataset
-
-FP_ROOT = Path("/dmidata/projects/cloudphysics/danra")
-RECHUNK_TO = dict(time=4, x=512, y=512)
+from ..main import create_zarr_dataset
+from .config import FP_ROOT
 
 
 def _time_to_str(t):
@@ -33,6 +31,9 @@ class ZarrTarget(luigi.Target):
     def open(self):
         return xr.open_zarr(self.fp)
 
+    def write(self, ds):
+        ds.to_zarr(self.path)
+
     @property
     def path(self):
         return self.fp
@@ -48,8 +49,11 @@ class DanraZarrSubset(luigi.Task):
     variables = luigi.ListParameter()
     levels = luigi.ListParameter()
     level_type = luigi.Parameter()
+    rechunk_to = luigi.DictParameter()
 
     def run(self):
+        if any([c not in self.rechunk_to for c in ["time", "x", "y"]]):
+            raise Exception("rechunk_to should contain time, x and y")
 
         identifier = self.identifier
         tempdir = tempfile.TemporaryDirectory(
@@ -60,7 +64,7 @@ class DanraZarrSubset(luigi.Task):
             fp_temp=Path(tempdir.name),
             fp_out=self.output().path,
             analysis_time=self.analysis_time,
-            rechunk_to=RECHUNK_TO,
+            rechunk_to=self.rechunk_to,
             variables=list(self.variables),
             levels=list(self.levels),
             level_type=self.level_type,
@@ -136,6 +140,7 @@ class DanraZarrSubsetAggregated(DanraZarrSubset):
                 variables=self.variables,
                 levels=self.levels,
                 level_type=self.level_type,
+                rechunk_to=self.rechunk_to,
             )
             tasks.append(task)
 
@@ -143,6 +148,6 @@ class DanraZarrSubsetAggregated(DanraZarrSubset):
 
     def run(self):
         datasets = [inp.open() for inp in self.input()]
-        ds = xr.concat(datasets, dim="time").chunk(RECHUNK_TO)
-        ds.to_zarr(self.output().path)
+        ds = xr.concat(datasets, dim="time").chunk(self.rechunk_to)
+        self.output().write(ds)
         logger.info(f"{self.output().path} done!", flush=True)
