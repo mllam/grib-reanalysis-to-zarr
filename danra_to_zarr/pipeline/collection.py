@@ -12,7 +12,9 @@ from .. import __version__
 from .base import DanraZarrSubsetAggregated, ZarrTarget
 from .config import DATA_COLLECTION, FP_ROOT
 
-VERSION = __version__
+VERSION = f"v{__version__.split('+')[0]}"
+
+logger.info(f"Processing for version {VERSION}")
 
 
 class DanraZarrCollection(luigi.Task):
@@ -121,6 +123,7 @@ class DanraCompleteZarrCollection(luigi.Task):
 
         text_markdown = "# DANRA reanalysis Zarr data collection\n\n"
         text_markdown = f"**{VERSION}, created {datetime.datetime.now().replace(microsecond=0).isoformat()}**\n\n"
+        text_markdown += f"time-span: {collection_details['timespan'].start} to {collection_details['timespan'].stop}\n\n"
         text_markdown += f"> {collection_description}\n\n"
         inputs = self.input()
 
