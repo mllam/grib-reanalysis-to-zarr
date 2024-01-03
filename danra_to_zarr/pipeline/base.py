@@ -9,7 +9,7 @@ import xarray as xr
 from loguru import logger
 
 from ..main import create_zarr_dataset
-from .config import FP_ROOT
+from .config import FP_ROOT, FP_TEMP_ROOT
 
 
 def _time_to_str(t):
@@ -55,20 +55,23 @@ class DanraZarrSubset(luigi.Task):
         if any([c not in self.rechunk_to for c in ["time", "x", "y"]]):
             raise Exception("rechunk_to should contain time, x and y")
 
-        identifier = self.identifier
-        tempdir = tempfile.TemporaryDirectory(
-            dir=FP_ROOT / "tempfiles", prefix=identifier
-        )
+        Path(self.output().path).parent.mkdir(exist_ok=True, parents=True)
+        FP_TEMP_ROOT.mkdir(exist_ok=True, parents=True)
 
-        create_zarr_dataset(
-            fp_temp=Path(tempdir.name),
-            fp_out=self.output().path,
-            analysis_time=self.analysis_time,
-            rechunk_to=self.rechunk_to,
-            variables=list(self.variables),
-            levels=list(self.levels),
-            level_type=self.level_type,
-        )
+        identifier = self.identifier
+        with tempfile.TemporaryDirectory(
+            dir=FP_TEMP_ROOT, prefix=identifier
+        ) as tempdir:
+
+            create_zarr_dataset(
+                fp_temp=Path(tempdir),
+                fp_out=self.output().path,
+                analysis_time=self.analysis_time,
+                rechunk_to=self.rechunk_to,
+                variables=list(self.variables),
+                levels=list(self.levels),
+                level_type=self.level_type,
+            )
 
     @property
     def analysis_time(self):

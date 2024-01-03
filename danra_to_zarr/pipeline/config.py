@@ -1,6 +1,8 @@
 from pathlib import Path
 
-FP_ROOT = Path("/dmidata/projects/cloudphysics/danra")
+# FP_ROOT = Path("/dmidata/projects/cloudphysics/danra")
+FP_ROOT = Path("/nwp/danra/data")
+FP_TEMP_ROOT = Path("/nwp/danra/tempfiles")
 
 
 # The "data collection" may contain multiple named parts (each will be put in its own zarr archive)
@@ -9,9 +11,9 @@ FP_ROOT = Path("/dmidata/projects/cloudphysics/danra")
 
 
 DATA_COLLECTION = dict(
-    description="Full dataset period for all variables on reduced levels",
-    rechunk_to=dict(time=4, x=512, y=512),
-    timespan=slice("1990-09-01", "2020-09-01"),
+    description="All variables for one-year period on reduced levels",
+    rechunk_to=dict(time=24, x=512, y=512),
+    timespan=slice("1990-09-01", "1991-09-01"),
     parts=dict(
         height_levels=dict(
             heightAboveGround=dict(
