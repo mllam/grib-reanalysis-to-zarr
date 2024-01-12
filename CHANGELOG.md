@@ -1,3 +1,11 @@
+# Unreleased
+
+_maintenance_
+
+- Added more detailed logging including installed versions and script to copy
+  completed datasets to scale.dmi.dk
+
+
 # v0.2.1
 
 First data-collection with all three parts, with variables on 1) height-,

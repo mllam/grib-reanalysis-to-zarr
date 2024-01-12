@@ -1,8 +1,12 @@
 from pathlib import Path
 
-# FP_ROOT = Path("/dmidata/projects/cloudphysics/danra")
+from .. import __version__
+
+# FP_ROOT = Path("/dmidata/projects/cloudphysics/danra/data")
 FP_ROOT = Path("/nwp/danra/data")
 FP_TEMP_ROOT = Path("/nwp/danra/tempfiles")
+
+VERSION = f"v{__version__.split('+')[0]}"
 
 
 # The "data collection" may contain multiple named parts (each will be put in its own zarr archive)

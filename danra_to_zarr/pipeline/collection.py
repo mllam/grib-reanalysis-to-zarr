@@ -1,4 +1,5 @@
 import datetime
+import io
 
 import isodate
 import luigi
@@ -8,11 +9,9 @@ import xarray as xr
 from loguru import logger
 from zarr.convenience import consolidate_metadata
 
-from .. import __version__
+from ..utils.print_versions import show_versions
 from .base import DanraZarrSubsetAggregated, ZarrTarget
-from .config import DATA_COLLECTION, FP_ROOT
-
-VERSION = f"v{__version__.split('+')[0]}"
+from .config import DATA_COLLECTION, FP_ROOT, VERSION
 
 logger.info(f"Processing for version {VERSION}")
 
@@ -30,7 +29,6 @@ class DanraZarrCollection(luigi.Task):
         timespan = collection_details["timespan"]
 
         tasks = {}
-
         part_id = self.part_id
         part_contents = collection_details["parts"][part_id]
 
@@ -97,7 +95,7 @@ class DanraZarrCollection(luigi.Task):
         consolidate_metadata(part_output.path)
 
     def output(self):
-        path_root = FP_ROOT / "data" / VERSION
+        path_root = FP_ROOT / VERSION
         fn = f"{self.part_id}.zarr"
         return ZarrTarget(path_root / fn)
 
@@ -164,6 +162,12 @@ class DanraCompleteZarrCollection(luigi.Task):
                     for v in var_names
                 )
 
+        # include package versions
+        fh = io.StringIO()
+        show_versions(file=fh)
+        text_markdown += "\n\n"
+        text_markdown += f"<pre>{fh.getvalue()}</pre>\n\n"
+
         readme_path = self.output()["README"].path
 
         with open(readme_path, "w") as f:
@@ -173,7 +177,7 @@ class DanraCompleteZarrCollection(luigi.Task):
 
     def output(self):
         fn = "README.md"
-        fp_root = FP_ROOT / "data" / VERSION
+        fp_root = FP_ROOT / VERSION
 
         outputs = dict(self.input())
         outputs["README"] = ZarrTarget(fp_root / fn)

@@ -9,14 +9,14 @@ import xarray as xr
 from loguru import logger
 
 from ..main import create_zarr_dataset
-from .config import FP_ROOT, FP_TEMP_ROOT
+from .config import FP_ROOT, FP_TEMP_ROOT, VERSION
 
 
 def _time_to_str(t):
     return t.isoformat().replace(":", "").replace("-", "")
 
 
-fn_log = f"{_time_to_str(datetime.datetime.now())}.log"
+fn_log = Path(FP_ROOT) / VERSION / f"{_time_to_str(datetime.datetime.now())}.log"
 logger.add(fn_log)
 logger.info(f"Logging to {fn_log}")
 
