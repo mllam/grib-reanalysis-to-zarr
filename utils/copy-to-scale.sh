@@ -10,5 +10,5 @@ else
     echo "Copying version $VERSION to scale.dmi.dk"
 fi
 
-rsync --progress -r "${VERSION}" "${DEST_DIR}/${VERSION}"
+rsync --progress -r "${VERSION}" "${DEST_DIR}/${VERSION}/"
 cp ~/git-repos/danra_to_zarr/CHANGELOG.md "${DEST_DIR}/"

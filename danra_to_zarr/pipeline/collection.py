@@ -129,7 +129,7 @@ class DanraCompleteZarrCollection(luigi.Task):
         for part_id, part_input in self.input().items():
             ds_part = inputs[part_id].open()
             text_markdown += f"## {part_id.replace('_', ' ')}\n\n"
-            text_markdown += f"filename: {part_input.path}\n\n"
+            text_markdown += f"filename: `{part_input.path.name}`\n\n"
             if "level" in ds_part.coords:
                 N_levels = len(ds_part.level.values)
                 var_names = list(ds_part.data_vars)
