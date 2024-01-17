@@ -1,6 +1,6 @@
 [project]
 name = "danra_to_zarr"
-version = "0.2.1"
+version = "0.2.2"
 description = "Process DANRA GRIB files to Zarr"
 authors = [
     {name = "Leif Denby", email = "lcd@dmi.dk"},
@@ -15,6 +15,12 @@ requires-python = ">=3.9"
 readme = "README.md"
 license = {text = "MIT"}
 
+[project.optional-dependencies]
+analysis = [
+    "cartopy>=0.22.0",
+    "matplotlib>=3.8.2",
+    "ipykernel>=6.28.0",
+]
 [tool.pdm.dev-dependencies]
 dev = [
     "ipykernel>=6.27.1",

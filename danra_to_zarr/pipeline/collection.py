@@ -121,7 +121,7 @@ class DanraCompleteZarrCollection(luigi.Task):
         collection_description = collection_details["description"]
 
         text_markdown = "# DANRA reanalysis Zarr data collection\n\n"
-        text_markdown = f"**{VERSION}, created {datetime.datetime.now().replace(microsecond=0).isoformat()}**\n\n"
+        text_markdown += f"**{VERSION}, created {datetime.datetime.now().replace(microsecond=0).isoformat()}**\n\n"
         text_markdown += f"time-span: {collection_details['timespan'].start} to {collection_details['timespan'].stop}\n\n"
         text_markdown += f"> {collection_description}\n\n"
         inputs = self.input()

@@ -100,7 +100,7 @@ class DanraZarrSubset(luigi.Task):
     def output(self):
         fn = f"{self.identifier}.zarr"
 
-        return ZarrTarget(FP_ROOT / "data" / "subset" / fn)
+        return ZarrTarget(FP_ROOT / "subset" / fn)
 
 
 class DanraZarrSubsetAggregated(DanraZarrSubset):
