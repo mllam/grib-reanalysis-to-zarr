@@ -1,5 +1,9 @@
 # Unreleased
 
+_fixes_
+
+- Fix time-overlap bug that lead to repeated timesteps in output
+
 _maintenance_
 
 - Added more detailed logging including installed versions and script to copy

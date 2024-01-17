@@ -150,7 +150,15 @@ class DanraZarrSubsetAggregated(DanraZarrSubset):
         return tasks
 
     def run(self):
-        datasets = [inp.open() for inp in self.input()]
+        datasets = []
+        inputs = self.input()
+        for i, inp in enumerate(inputs):
+            ds = inp.open()
+            # remove last timestep from all but last dataset
+            if i < len(inputs) - 1:
+                ds = ds.isel(time=slice(None, -1))
+            datasets.append(ds)
+
         ds = xr.concat(datasets, dim="time").chunk(self.rechunk_to)
         self.output().write(ds)
         logger.info(f"{self.output().path} done!", flush=True)
