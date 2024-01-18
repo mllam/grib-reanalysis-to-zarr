@@ -1,4 +1,4 @@
-# Unreleased
+# v0.2.2
 
 _fixes_
 
