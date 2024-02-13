@@ -3,12 +3,14 @@ import tempfile
 from pathlib import Path
 
 import dmidc.utils
+import isodate
 import luigi
 import pandas as pd
 import xarray as xr
 from loguru import logger
 
 from ..main import create_zarr_dataset
+from . import logging  # noqa
 from .config import FP_ROOT, FP_TEMP_ROOT, VERSION
 
 
@@ -46,10 +48,10 @@ class DanraZarrSubset(luigi.Task):
 
     t_start = luigi.DateMinuteParameter()
     t_end = luigi.DateMinuteParameter()
-    variables = luigi.ListParameter()
-    levels = luigi.ListParameter()
+    variables = luigi.DictParameter()
     level_type = luigi.Parameter()
     rechunk_to = luigi.DictParameter()
+    level_name_mapping = luigi.OptionalDictParameter(default=None)
 
     def run(self):
         if any([c not in self.rechunk_to for c in ["time", "x", "y"]]):
@@ -57,6 +59,12 @@ class DanraZarrSubset(luigi.Task):
 
         Path(self.output().path).parent.mkdir(exist_ok=True, parents=True)
         FP_TEMP_ROOT.mkdir(exist_ok=True, parents=True)
+
+        # since we're going to be concatenating datasets along the time dimension
+        # we need to ensure that the time dimension is chunked to 1 otherwise
+        # dask will complain about concatenating datasets with different chunking
+        rechunk_to = dict(self.rechunk_to)
+        # rechunk_to["time"] = 1
 
         identifier = self.identifier
         with tempfile.TemporaryDirectory(
@@ -67,10 +75,10 @@ class DanraZarrSubset(luigi.Task):
                 fp_temp=Path(tempdir),
                 fp_out=self.output().path,
                 analysis_time=self.analysis_time,
-                rechunk_to=self.rechunk_to,
-                variables=list(self.variables),
-                levels=list(self.levels),
+                rechunk_to=rechunk_to,
+                variables=self.variables,
                 level_type=self.level_type,
+                level_name_mapping=self.level_name_mapping,
             )
 
     @property
@@ -87,11 +95,14 @@ class DanraZarrSubset(luigi.Task):
     @property
     def identifier(self):
         analysis_time = self.analysis_time
+        variables_identifier_parts = [
+            f"{var_name}_{'_'.join(str(l) for l in levels)}"
+            for (var_name, levels) in self.variables.items()
+        ]
         name_parts = [
             "danra",
             self.level_type,
-            "_".join(sorted(self.variables)),
-            "_".join([str(level) for level in sorted(self.levels)]),
+            "_".join(variables_identifier_parts),
             f"{_time_to_str(analysis_time.start)}-{_time_to_str(analysis_time.stop)}",
         ]
         identifier = ".".join(name_parts)
@@ -99,52 +110,45 @@ class DanraZarrSubset(luigi.Task):
 
     def output(self):
         fn = f"{self.identifier}.zarr"
+        fp = FP_ROOT / "subset" / fn
 
-        return ZarrTarget(FP_ROOT / "subset" / fn)
+        return ZarrTarget(fp)
 
 
 class DanraZarrSubsetAggregated(DanraZarrSubset):
     """
-    Aggregate multiple zarr based subsets of DANRA into a single zarr archive
+    Aggregate multiple zarr based subsets of DANRA into a single zarr archive.
+    To reduce the number of subsets that need to be aggregated `t_intervals` should define
+    a list of time-durations that should be aggregated over, e.g.
+    `t_intervals=["PT24H", "P7D", "P1Y"]` will aggregate first into 24-hour intervals,
+    then these into 1-week intervals, these into 1-year intervals
+    and finally into the complete dataset.
     """
 
-    t_interval = luigi.TimeDeltaParameter()
+    t_intervals = luigi.ListParameter()
 
     def requires(self):
-        # if the timespan is greater than a year then we need to ensure that we
-        # always start on the first of january so that we can reuse blocks of
-        # data we're already done
+        t_intervals = list(self.t_intervals)
+        t_interval = isodate.parse_duration(t_intervals.pop(-1))
 
-        t0 = self.t_start
+        create_child_aggregate = len(t_intervals) > 0
 
-        ts = []
-        while t0 < self.t_end:
-            if t0.year != self.t_end.year:
-                t_startof_next_year = datetime.datetime(t0.year + 1, 1, 1)
-                ts += list(
-                    pd.date_range(
-                        t0, t_startof_next_year, freq=self.t_interval, inclusive="both"
-                    )
-                )
-                t0 = t_startof_next_year
-            else:
-                ts += list(
-                    pd.date_range(
-                        t0, self.t_end, freq=self.t_interval, inclusive="both"
-                    )
-                )
-                t0 = self.t_end
+        ts = pd.date_range(self.t_start, self.t_end, freq=t_interval, inclusive="both")
 
         tasks = []
         for t_start, t_end in zip(ts[:-1], ts[1:]):
-            task = DanraZarrSubset(
+            kwargs = dict(
                 t_start=t_start,
                 t_end=t_end,
                 variables=self.variables,
-                levels=self.levels,
                 level_type=self.level_type,
                 rechunk_to=self.rechunk_to,
+                level_name_mapping=self.level_name_mapping,
             )
+            if create_child_aggregate:
+                task = self.__class__(t_intervals=t_intervals, **kwargs)
+            else:
+                task = DanraZarrSubset(**kwargs)
             tasks.append(task)
 
         return tasks
@@ -153,12 +157,20 @@ class DanraZarrSubsetAggregated(DanraZarrSubset):
         datasets = []
         inputs = self.input()
         for i, inp in enumerate(inputs):
-            ds = inp.open()
+            ds = inp.open().reset_encoding()
             # remove last timestep from all but last dataset
             if i < len(inputs) - 1:
                 ds = ds.isel(time=slice(None, -1))
             datasets.append(ds)
 
         ds = xr.concat(datasets, dim="time").chunk(self.rechunk_to)
+        # check that all time increments are the same, this will check for gaps
+        # as well as duplicates in the data
+        da_dt = ds.time.diff(dim="time")
+        if not da_dt.min() == da_dt.max():
+            raise Exception(
+                "Not all time increments are the same in the concatenated data."
+                " Maybe some timesteps are duplicated or missing?"
+            )
         self.output().write(ds)
         logger.info(f"{self.output().path} done!", flush=True)

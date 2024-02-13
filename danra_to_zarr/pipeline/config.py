@@ -15,9 +15,10 @@ VERSION = f"v{__version__.split('+')[0]}"
 
 
 DATA_COLLECTION = dict(
-    description="All variables for one-year period on reduced levels",
-    rechunk_to=dict(time=24, x=512, y=512),
-    timespan=slice("1990-09-01", "1991-09-01"),
+    description="All prognostic variables for 10-year period on reduced levels",
+    rechunk_to=dict(time=128, x=128, y=128),
+    intermediate_time_partitioning=["P14D", "P26W"],
+    timespan=slice("1990-09-01", "2000-09-01"),
     parts=dict(
         height_levels=dict(
             heightAboveGround=dict(
@@ -94,17 +95,19 @@ DATA_COLLECTION = dict(
                         # "vgst": [10],
                     },
                 },
-                name_mapping="{var_name}{level}m",
+                level_name_mapping="{var_name}{level}m",
             ),
             entireAtmosphere=dict(
                 variables={v: [0] for v in "pwat cape cb ct grpl".split()},
-                name_mapping="{var_name}_column",
+                level_name_mapping="{var_name}_column",
             ),
-            nominalTop=dict(
-                variables=dict(nswrt=[0], nlwrt=[0]), name_mapping="{var_name}_toa"
-            ),
+            # the variables `nswrt` and `nlwrt` are not available with timeRangeIndicator==0
+            # for all source tar-files, and so I am excluding them for now
+            # nominalTop=dict(
+            #     variables=dict(nswrt=[0], nlwrt=[0]), level_name_mapping="{var_name}_toa"
+            # ),
             heightAboveSea=dict(
-                variables=dict(pres=[0]), name_mapping="{var_name}_seasurface"
+                variables=dict(pres=[0]), level_name_mapping="{var_name}_seasurface"
             ),
         ),
     ),

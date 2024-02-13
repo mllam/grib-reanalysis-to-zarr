@@ -34,17 +34,20 @@ class DanraZarrCollection(luigi.Task):
 
         for level_type, level_type_variables in part_contents.items():
             tasks[level_type] = {}
-            for var_name, levels in level_type_variables["variables"].items():
-                task = DanraZarrSubsetAggregated(
-                    t_start=isodate.parse_date(timespan.start),
-                    t_end=isodate.parse_date(timespan.stop),
-                    t_interval=isodate.parse_duration("P7D"),
-                    variables=[var_name],
-                    levels=levels,
-                    level_type=level_type,
-                    rechunk_to=collection_details["rechunk_to"],
-                )
-                tasks[level_type][var_name] = task
+
+            level_name_mapping = collection_details["parts"][part_id][level_type].get(
+                "level_name_mapping"
+            )
+            task = DanraZarrSubsetAggregated(
+                t_start=isodate.parse_date(timespan.start),
+                t_end=isodate.parse_date(timespan.stop),
+                t_intervals=collection_details["intermediate_time_partitioning"],
+                variables=level_type_variables["variables"],
+                level_type=level_type,
+                rechunk_to=collection_details["rechunk_to"],
+                level_name_mapping=level_name_mapping,
+            )
+            tasks[level_type] = task
 
         return tasks
 
@@ -56,26 +59,18 @@ class DanraZarrCollection(luigi.Task):
         part_inputs = self.input()
 
         part_contents = {}
-        for level_type, level_type_variables in part_inputs.items():
-            name_mapping = collection_details["parts"][part_id][level_type].get(
-                "name_mapping"
-            )
-            for var_name, var_input in level_type_variables.items():
-                da_var = var_input.open()[var_name]
-                if name_mapping is not None:
-                    for level in da_var.level.values:
-                        da_var_level = da_var.sel(level=level).drop("level")
-                        da_var_level.attrs["level"] = level
-                        identifier = name_mapping.format(var_name=var_name, level=level)
-                        part_contents[identifier] = da_var_level
-                else:
-                    identifier = var_name
-                    part_contents[var_name] = da_var
+        for level_type, level_type_inputs in part_inputs.items():
+            ds_level_type = level_type_inputs.open()
+            for var_name in ds_level_type.data_vars:
+                da_var = ds_level_type[var_name]
+                da_var.attrs["level_type"] = level_type
+                part_contents[var_name] = da_var
 
         ds_part = xr.Dataset(part_contents)
+
         ds_part.attrs["description"] = collection_description
         part_output = self.output()
-        part_output.path.mkdir(exist_ok=True, parents=True)
+        part_output.path.parent.mkdir(exist_ok=True, parents=True)
         logger.info(
             f"Writing {VERSION} collection part {part_id} to {part_output.path}"
         )
@@ -91,6 +86,8 @@ class DanraZarrCollection(luigi.Task):
                 if attr in ds_part[var_name].attrs:
                     del ds_part[var_name].attrs[attr]
             ds_part[var_name].attrs["long_name"] = ds_part[var_name].attrs.pop("name")
+            ds_part[var_name] = ds_part[var_name]
+
         part_output.write(ds_part)
         consolidate_metadata(part_output.path)
 
@@ -112,6 +109,8 @@ class DanraCompleteZarrCollection(luigi.Task):
         tasks = {}
 
         for part_id in collection_details["parts"].keys():
+            if part_id != "height_levels":
+                continue
             tasks[part_id] = DanraZarrCollection(part_id=part_id)
 
         return tasks

@@ -1,6 +1,13 @@
 import shutil
 from pathlib import Path
 
+try:
+    from collections.abc import Mapping
+except ImportError:
+    from collections import Mapping
+
+import warnings
+
 import dmidc.harmonie
 import dmidc.utils
 import fsspec
@@ -10,8 +17,19 @@ from loguru import logger
 from zarr.convenience import consolidate_metadata
 
 
+def _is_listlike(v):
+    return isinstance(v, list) or isinstance(v, tuple)
+
+
 def create_zarr_dataset(
-    fp_temp, fp_out, analysis_time, rechunk_to, level_type, variables, levels=None
+    fp_temp,
+    fp_out,
+    analysis_time,
+    rechunk_to,
+    level_type,
+    variables,
+    levels=None,
+    level_name_mapping=None,
 ):
     """
     Produce a zarr store with the given variables and levels, rechunked to the given chunk sizes.
@@ -31,22 +49,39 @@ def create_zarr_dataset(
     levels : list or None
         List of levels to load, e.g. [850, 500]
         if a list, variables must be a list of variable names
+    level_name_mapping : str or None
+        String to use to format the variable with a given level type
+        e.g. "{var_name}{level}hPa", "{var_name}{level}m" where var_name is the
+        variable name and level is the level value
     """
     # remove fp_out directory if it exists
     if Path(fp_out).is_dir():
         shutil.rmtree(fp_out)
 
-    fs = fsspec.filesystem("file")
-
     def _get_levels_and_variables():
-        if isinstance(variables, dict):
+        # need to match `dict` and `luigi.freezing.FrozenOrderedDict` which both subclass Mapping
+        if isinstance(variables, Mapping):
             if levels is not None:
                 raise ValueError("if variables is a dict, levels must be None")
 
+            # group the variables so that we can load them all at once
+            # e.g. {'t': [850, 500], 'w': [850, 500, 100]} -> {850: ['t', 'w'], 500: ['t', 'w'], 100: ['w']}
+
+            # first, get a list of all the levels
+            all_levels = []
             for var_name, var_levels in variables.items():
-                for level in var_levels:
-                    yield level, var_name
-        elif isinstance(variables, list) and isinstance(levels, list):
+                all_levels.extend(var_levels)
+            all_levels = list(set(all_levels))
+
+            # now, for each level, get the variables that are defined for that level
+            for level in all_levels:
+                var_names = []
+                for var_name, var_levels in variables.items():
+                    if level in var_levels:
+                        var_names.append(var_name)
+                yield level, var_names
+
+        elif _is_listlike(variables) and _is_listlike(levels):
             for level in levels:
                 yield level, variables
         else:
@@ -69,22 +104,57 @@ def create_zarr_dataset(
         except Exception as ex:
             logger.error(ex)
             raise
-        ds.coords["level"] = level
+
+        if level_name_mapping is None:
+            ds.coords["level"] = level
+        else:
+            for var_name in var_names:
+                da_var = ds[var_name]
+                ds = ds.drop(var_name)
+                da_var.attrs["level"] = level
+                new_var_name = level_name_mapping.format(var_name=var_name, level=level)
+                ds[new_var_name] = da_var
+
         datasets.append(ds)
 
-    ds = xr.concat(datasets, dim="level")
-
-    # TODO: this should really be done in dmidc.harmonie.load
-    if level_type == "isobaricInhPa":
-        ds.coords["level"].attrs["units"] = "hPa"
-    elif level_type in ["heightAboveGround", "heightAboveSea"]:
-        ds.coords["level"].attrs["units"] = "m"
-    elif level_type in ["entireAtmosphere", "nominalTop", "surface"]:
-        pass
+    if level_name_mapping is None:
+        ds = xr.concat(datasets, dim="level")
     else:
-        raise NotImplementedError(level_type)
+        ds = xr.merge(datasets)
 
+    if level_name_mapping is None:
+        # TODO: this should really be done in dmidc.harmonie.load
+        if level_type == "isobaricInhPa":
+            ds.coords["level"].attrs["units"] = "hPa"
+        elif level_type in ["heightAboveGround", "heightAboveSea"]:
+            ds.coords["level"].attrs["units"] = "m"
+        elif level_type in ["entireAtmosphere", "nominalTop", "surface"]:
+            pass
+        else:
+            raise NotImplementedError(level_type)
+
+    mapper = rechunk_and_write(
+        ds=ds, fp_out=fp_out, fp_temp=fp_temp, rechunk_to=rechunk_to
+    )
+
+    ds_zarr = xr.open_zarr(mapper)
+    logger.info(ds_zarr)
+
+    logger.info(f"{fp_out} done!", flush=True)
+
+
+def rechunk_and_write(ds, fp_temp, fp_out, rechunk_to):
+    fs = fsspec.filesystem("file")
     mapper = fs.get_mapper(fp_out)
+
+    for d in ds.dims:
+        dim_len = len(ds[d])
+        if d in rechunk_to and rechunk_to[d] > dim_len:
+            warnings.warn(
+                f"Requested chunksize for dim `{d}` is larger than then dimension"
+                f" size ({rechunk_to[d]} > {dim_len}). Reducing to dimension size."
+            )
+            rechunk_to[d] = dim_len
 
     target_chunks = {}
     for d in ds.dims:
@@ -101,7 +171,7 @@ def create_zarr_dataset(
     r = rechunker.rechunk(
         ds,
         target_chunks=target_chunks,
-        max_mem="4GB",
+        max_mem="32GB",
         target_store=target_store,
         temp_store=fp_temp,
     )
@@ -113,10 +183,7 @@ def create_zarr_dataset(
 
     consolidate_metadata(mapper)
 
-    ds_zarr = xr.open_zarr(mapper)
-    logger.info(ds_zarr)
-
-    logger.info(f"{fp_out} done!", flush=True)
+    return mapper
 
 
 if __name__ == "__main__":
