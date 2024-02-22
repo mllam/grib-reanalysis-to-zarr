@@ -67,5 +67,19 @@ class InterceptHandler(logging.Handler):
         )
 
 
-# Intercept standard logging messages, so that loguru can handle them
-logging.basicConfig(handlers=[InterceptHandler()], level=0)
+def setup_luigi_log_interception():
+    # Get the luigi-interface logger
+    luigi_logger = logging.getLogger("luigi-interface")
+
+    # Clear existing handlers (optional, based on your needs)
+    luigi_logger.handlers = []
+
+    # Create and add the intercept handler
+    intercept_handler = InterceptHandler()
+    luigi_logger.addHandler(intercept_handler)
+
+    # Optionally, you might want to adjust the log level
+    luigi_logger.setLevel(logging.DEBUG)
+
+
+setup_luigi_log_interception()

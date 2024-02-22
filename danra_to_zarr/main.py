@@ -133,6 +133,22 @@ def create_zarr_dataset(
         else:
             raise NotImplementedError(level_type)
 
+    # dmidc returns data for the entire time range including the final
+    # timestep, i.e. [t_start, t_end] rather than [t_start, t_end[
+    # we remove the last timestep here to make it simpler to join subsets
+    # downstream
+    ds = ds.isel(time=slice(None, -1))
+
+    # check that all time-steps have the same length, it appears that some
+    # output files are sometimes incomplete... we need to check that the source
+    # files have been fixed
+    da_dt = ds.time.diff(dim="time")
+    if not da_dt.min() == da_dt.max():
+        raise Exception(
+            "Not all time increments are the same in the produced zarr dataset."
+            " Maybe some of the loaded GRIB files were incomplete?"
+        )
+
     mapper = rechunk_and_write(
         ds=ds, fp_out=fp_out, fp_temp=fp_temp, rechunk_to=rechunk_to
     )

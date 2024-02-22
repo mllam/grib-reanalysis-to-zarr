@@ -158,9 +158,6 @@ class DanraZarrSubsetAggregated(DanraZarrSubset):
         inputs = self.input()
         for i, inp in enumerate(inputs):
             ds = inp.open().reset_encoding()
-            # remove last timestep from all but last dataset
-            if i < len(inputs) - 1:
-                ds = ds.isel(time=slice(None, -1))
             datasets.append(ds)
 
         ds = xr.concat(datasets, dim="time").chunk(self.rechunk_to)
@@ -170,7 +167,8 @@ class DanraZarrSubsetAggregated(DanraZarrSubset):
         if not da_dt.min() == da_dt.max():
             raise Exception(
                 "Not all time increments are the same in the concatenated data."
-                " Maybe some timesteps are duplicated or missing?"
+                " Maybe some timesteps are duplicated or missing? Tried to combine"
+                f" datasets from the following paths: {' '.join(map(lambda t: str(t.path), inputs))}"
             )
         self.output().write(ds)
         logger.info(f"{self.output().path} done!", flush=True)
