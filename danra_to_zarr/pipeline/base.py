@@ -1,4 +1,3 @@
-import datetime
 import tempfile
 from pathlib import Path
 
@@ -11,16 +10,8 @@ from loguru import logger
 
 from ..main import create_zarr_dataset
 from . import logging  # noqa
-from .config import FP_ROOT, FP_TEMP_ROOT, VERSION
-
-
-def _time_to_str(t):
-    return t.isoformat().replace(":", "").replace("-", "")
-
-
-fn_log = Path(FP_ROOT) / VERSION / f"{_time_to_str(datetime.datetime.now())}.log"
-logger.add(fn_log)
-logger.info(f"Logging to {fn_log}")
+from .config import FP_ROOT, FP_TEMP_ROOT
+from .utils import time_to_str
 
 
 class ZarrTarget(luigi.Target):
@@ -103,7 +94,7 @@ class DanraZarrSubset(luigi.Task):
             "danra",
             self.level_type,
             "_".join(variables_identifier_parts),
-            f"{_time_to_str(analysis_time.start)}-{_time_to_str(analysis_time.stop)}",
+            f"{time_to_str(analysis_time.start)}-{time_to_str(analysis_time.stop)}",
         ]
         identifier = ".".join(name_parts)
         return identifier
@@ -157,7 +148,10 @@ class DanraZarrSubsetAggregated(DanraZarrSubset):
         datasets = []
         inputs = self.input()
         for i, inp in enumerate(inputs):
-            ds = inp.open().reset_encoding()
+            try:
+                ds = inp.open().reset_encoding()
+            except Exception as ex:
+                raise Exception(f"There was an exception opening {inp.path}: {ex}")
             datasets.append(ds)
 
         ds = xr.concat(datasets, dim="time").chunk(self.rechunk_to)

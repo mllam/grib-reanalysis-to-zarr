@@ -2,11 +2,16 @@
 This module is a hack to replace luigi's normal logging functionality so we can
 use loguru instead
 """
+import datetime
 import inspect
 import logging
 import os
+from pathlib import Path
 
 from loguru import logger
+
+from .config import FP_ROOT, VERSION
+from .utils import time_to_str
 
 # Prevent Luigi from automatically configuring logging
 os.environ["LUIGI_CONFIG_PATH"] = "/dev/null"
@@ -32,9 +37,16 @@ def is_luigi_logging_setup_in_call_stack():
 original_addHandler = logging.Logger.addHandler
 
 
+def setup_loguru_logger():
+    fn_log = Path(FP_ROOT) / VERSION / f"{time_to_str(datetime.datetime.now())}.log"
+    logger.add(fn_log)
+    logger.info(f"Logging to {fn_log}")
+    logger.info(f"Processing for version {VERSION}")
+
+
 def addHandlerWithNotification(self, hdlr):
     if self.name == "luigi-interface" and is_luigi_logging_setup_in_call_stack():
-        pass
+        setup_loguru_logger()
     else:
         original_addHandler(self, hdlr)
 

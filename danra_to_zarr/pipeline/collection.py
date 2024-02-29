@@ -13,8 +13,6 @@ from ..utils.print_versions import show_versions
 from .base import DanraZarrSubsetAggregated, ZarrTarget
 from .config import DATA_COLLECTION, FP_ROOT, VERSION
 
-logger.info(f"Processing for version {VERSION}")
-
 
 class DanraZarrCollection(luigi.Task):
     """
@@ -69,6 +67,7 @@ class DanraZarrCollection(luigi.Task):
         ds_part = xr.Dataset(part_contents)
 
         ds_part.attrs["description"] = collection_description
+
         part_output = self.output()
         part_output.path.parent.mkdir(exist_ok=True, parents=True)
         logger.info(
@@ -109,8 +108,6 @@ class DanraCompleteZarrCollection(luigi.Task):
         tasks = {}
 
         for part_id in collection_details["parts"].keys():
-            if part_id != "height_levels":
-                continue
             tasks[part_id] = DanraZarrCollection(part_id=part_id)
 
         return tasks
@@ -129,13 +126,20 @@ class DanraCompleteZarrCollection(luigi.Task):
             ds_part = inputs[part_id].open()
             text_markdown += f"## {part_id.replace('_', ' ')}\n\n"
             text_markdown += f"filename: `{part_input.path.name}`\n\n"
-            if "level" in ds_part.coords:
-                N_levels = len(ds_part.level.values)
+            level_dim = None
+            for dim in ["altitude", "pressure"]:
+                if dim in ds_part.coords:
+                    level_dim = dim
+
+            if level_dim is not None:
+                N_levels = len(ds_part[level_dim].values)
                 var_names = list(ds_part.data_vars)
                 N_vars = len(var_names)
+                units = ds_part[level_dim].attrs.get("units", "")
+                indexes = [f"{v} [{units}]" for v in ds_part[level_dim].values]
                 df = pd.DataFrame(
                     columns=var_names,
-                    index=ds_part.level.values,
+                    index=indexes,
                     data=np.ones((N_levels, N_vars), dtype=bool),
                 )
                 df = df.map(lambda v: "✓" if v is True else "")

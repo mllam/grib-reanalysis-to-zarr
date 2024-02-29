@@ -122,12 +122,18 @@ def create_zarr_dataset(
     else:
         ds = xr.merge(datasets)
 
+    # TODO: at some point `dmidc.harmonie.load` won't return this anymore
+    if "forecast_duration" in ds:
+        ds = ds.drop("forecast_duration")
+
     if level_name_mapping is None:
         # TODO: this should really be done in dmidc.harmonie.load
         if level_type == "isobaricInhPa":
             ds.coords["level"].attrs["units"] = "hPa"
+            ds = ds.rename(dict(level="pressure"))
         elif level_type in ["heightAboveGround", "heightAboveSea"]:
             ds.coords["level"].attrs["units"] = "m"
+            ds = ds.rename(dict(level="altitude"))
         elif level_type in ["entireAtmosphere", "nominalTop", "surface"]:
             pass
         else:
