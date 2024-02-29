@@ -1,3 +1,25 @@
+# v0.3.0
+
+*changed*
+
+- time duration changed from one year (1990-09-01 to 1991-09-1) to ten first years (1990-09-01 to 2000-09-01)
+
+- for pressure and height levels the "level" coordinate has been named `pressure` and `height` respectively
+
+- chunking size increased to `[time,x,y]=(256,256,256)`
+
+*maintenance*
+
+- implement staggered aggregation in time to reduce number of final aggregation tasks
+
+- handle rechunking when chunksize from first aggregations are below the intended chunksize
+
+
+*fixes*
+
+- add checks for missing timesteps
+
+
 # v0.2.2
 
 _fixes_
