@@ -1,12 +1,32 @@
-# Processing DANRA grib files to zarr
+# DANRA in zarr
+
+This repository contains the code to process DANRA GRIB files into `zarr` format and [notebooks](notebooks/) demonstrating how to work with the processed datasets.
 
 
-## Usage
+## Reading DANRA in zarr
+
+To read the DANRA processed datasets you will need to install the `xarray` and `zarr` packages, e.g. with:
+
+```markdown
+python -m pip install xarray zarr
+```
+
+Please have a look at the [notebooks](notebooks/) for an overview of how the data is structured and how you use it with `xarray`.
+
+
+## Processing
+
 
 Create a full dataset collection for DANRA (remember to edit [danra_to_zarr/pipeline/config.py](danra_to_zarr/pipeline/config.py) to add a configuration for this dataset):
 
 ```
-PYTHONPATH=`pwd`:$PYTHONPATH pdm run luigi --module danra_to_zarr.pipeline DanraCompleteZarrCollection --version v0.1.0
+PYTHONPATH=`pwd`:$PYTHONPATH pdm run luigi --module danra_to_zarr.pipeline DanraCompleteZarrCollection
+```
+
+Or to just extract one part of the data, e.g. `height_levels`:
+
+```
+PYTHONPATH=`pwd`:$PYTHONPATH pdm run luigi --module danra_to_zarr.pipeline DanraZarrCollection --part-id height_levels
 ```
 
 Create a single zarr-based subset of DANRA with luigi
@@ -25,42 +45,4 @@ PYTHONPATH=`pwd`:$PYTHONPATH pdm run luigi --module danra_to_zarr.pipeline Danra
 
 ## Data overview
 
-See [variables_levels_overview.md](variables_levels_overview.md) for an overview of all variables, and the levels and level types they're on.
-
-### Steps for extraction:
-
-1. Specify what variables on what levels of what level-types to extract
-2. Specify what time-period to extract
-3. Specify chunking
-4. Specify where to store extracted zarr dataset
-
-
-# intake catalog structure for danra
-
-```yaml
-description: "DANRA reanalysis data zarr extraction datasets"
-
-sources:
-  danra:
-    description: "DANRA reanalysis data zarr extraction datasets"
-    driver: intake_xarray.xzarr.ZarrSource
-    args:
-      urlpath: "https://scale-s3.dmi.dk/danra/{version}/{part_id}.zarr"
-      storage_options:
-        anon: true
-    metadata:
-      part_id:
-        - height_levels
-        - pressure_levels
-        - single_levels
-      version:
-        - v0.1.0
-```
-
-```python
-import intake
-
-cat_url = "https://scale-s3.dmi.dk/danra/catalog.yml"
-ds_height_levels = intake.open_catalog(cat_url).to_dask(version="v0.1.0", part_id="height_levels")
-da_u = ds_height_levels.u
-```
+See [variables_levels_overview.md](variables_levels_overview.md) for an overview from the source GRIB files of all variables, and the levels and level types they're on.
