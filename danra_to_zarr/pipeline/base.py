@@ -1,3 +1,4 @@
+import shutil
 import tempfile
 from pathlib import Path
 
@@ -10,7 +11,7 @@ from loguru import logger
 
 from ..main import create_zarr_dataset
 from . import logging  # noqa
-from .config import FP_ROOT, FP_TEMP_ROOT
+from .config import DELETE_INTERMEDIATE_ZARR_FILES, FP_ROOT, FP_TEMP_ROOT
 from .utils import time_to_str
 
 
@@ -166,3 +167,9 @@ class DanraZarrSubsetAggregated(DanraZarrSubset):
             )
         self.output().write(ds)
         logger.info(f"{self.output().path} done!", flush=True)
+
+        if DELETE_INTERMEDIATE_ZARR_FILES:
+            fps_parents = [inp.path for inp in inputs]
+            logger.info(f"Deleting input source files: {fps_parents}")
+            for fp_parent in fps_parents:
+                shutil.rmtree(fp_parent)

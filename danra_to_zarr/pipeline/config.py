@@ -8,6 +8,8 @@ FP_TEMP_ROOT = Path("/nwp/danra/tempfiles")
 
 VERSION = f"v{__version__.split('+')[0]}"
 
+DELETE_INTERMEDIATE_ZARR_FILES = True
+
 
 # The "data collection" may contain multiple named parts (each will be put in its own zarr archive)
 # Each part may contain multiple "level types" (e.g. heightAboveGround, etc)
@@ -18,7 +20,7 @@ DATA_COLLECTION = dict(
     description="All prognostic variables for 10-year period on reduced levels",
     rechunk_to=dict(time=256, x=256, y=256),
     intermediate_time_partitioning=["P14D", "P26W"],
-    timespan=slice("1990-09-01", "2000-09-01"),
+    timespan=slice("1990-09-01", "2020-09-01"),
     parts=dict(
         height_levels=dict(
             heightAboveGround=dict(
