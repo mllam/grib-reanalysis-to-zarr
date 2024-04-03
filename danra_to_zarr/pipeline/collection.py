@@ -1,5 +1,6 @@
 import datetime
 import io
+import shutil
 
 import isodate
 import luigi
@@ -11,7 +12,7 @@ from zarr.convenience import consolidate_metadata
 
 from ..utils.print_versions import show_versions
 from .base import DanraZarrSubsetAggregated, ZarrTarget
-from .config import DATA_COLLECTION, FP_ROOT, VERSION
+from .config import DATA_COLLECTION, DELETE_INTERMEDIATE_ZARR_FILES, FP_ROOT, VERSION
 
 
 class DanraZarrCollection(luigi.Task):
@@ -89,6 +90,12 @@ class DanraZarrCollection(luigi.Task):
 
         part_output.write(ds_part)
         consolidate_metadata(part_output.path)
+
+        if DELETE_INTERMEDIATE_ZARR_FILES:
+            fps_parents = [inp.path for inp in part_inputs.values()]
+            logger.info(f"Deleting input source files: {fps_parents}")
+            for fp_parent in fps_parents:
+                shutil.rmtree(fp_parent)
 
     def output(self):
         path_root = FP_ROOT / VERSION

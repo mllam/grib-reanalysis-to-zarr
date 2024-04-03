@@ -1,3 +1,12 @@
+# v0.4.0
+
+*changed*
+
+- increased time period to full 30 years (1990-09-01 to 2020-09-01)
+
+- add option to delete intermediate zarr-files to reduce storage requirements
+
+
 # v0.3.0
 
 *changed*

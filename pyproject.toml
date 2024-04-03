@@ -1,6 +1,6 @@
 [project]
 name = "danra_to_zarr"
-version = "0.3.0"
+version = "0.4.0"
 description = "Process DANRA GRIB files to Zarr"
 authors = [
     {name = "Leif Denby", email = "lcd@dmi.dk"},
@@ -36,3 +36,6 @@ dev = [
 [build-system]
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"
+
+[tool.isort]
+profile = "black"
