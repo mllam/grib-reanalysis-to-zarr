@@ -1,3 +1,13 @@
+# v0.5.0rc0
+
+*changed*
+
+- intermediate dataset with only 3 most recent years (2019-01-01 to 2024-01-01)
+
+*added*
+
+- README rendered in html as well as markdown
+
 # v0.4.0
 
 *changed*

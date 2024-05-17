@@ -13,6 +13,7 @@ from zarr.convenience import consolidate_metadata
 from ..utils.print_versions import show_versions
 from .base import DanraZarrSubsetAggregated, ZarrTarget
 from .config import DATA_COLLECTION, DELETE_INTERMEDIATE_ZARR_FILES, FP_ROOT, VERSION
+from .utils import convert_markdown_to_html
 
 
 class DanraZarrCollection(luigi.Task):
@@ -184,6 +185,8 @@ class DanraCompleteZarrCollection(luigi.Task):
             f.write(text_markdown)
 
         logger.info(f"Wrote README file to {readme_path}")
+
+        convert_markdown_to_html(fp_markdown=readme_path)
 
     def output(self):
         fn = "README.md"

@@ -1,6 +1,6 @@
 [project]
 name = "danra_to_zarr"
-version = "0.4.0"
+version = "0.5.0-rc0+2019-2023"
 description = "Process DANRA GRIB files to Zarr"
 authors = [
     {name = "Leif Denby", email = "lcd@dmi.dk"},
@@ -11,6 +11,8 @@ dependencies = [
     "luigi>=3.4.0",
     "dmidc[harmonie-grib] @ git+https://gitlab.dmi.dk/nwp/data-catalog@v0.4.1",
     "dask[distributed]>=2024.1.1",
+    "metpy>=1.6.2",
+    "markdown2>=2.4.13",
 ]
 requires-python = ">=3.9"
 readme = "README.md"
