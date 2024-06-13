@@ -70,6 +70,14 @@ class DanraZarrCollection(luigi.Task):
 
         ds_part.attrs["description"] = collection_description
 
+        # set license attribute
+        ds_part.attrs[
+            "license"
+        ] = "CC-BY-4.0: https://creativecommons.org/licenses/by/4.0/"
+        ds_part.attrs[
+            "contact"
+        ] = "Leif Denby <lcd@dmi.dk>, Danish Meteorological Institute"
+
         part_output = self.output()
         part_output.path.parent.mkdir(exist_ok=True, parents=True)
         logger.info(

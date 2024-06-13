@@ -1,3 +1,10 @@
+# Unreleased
+
+*added*
+
+- license (CC-BY-4.0) and contact information
+
+
 # v0.5.0rc0
 
 *changed*
