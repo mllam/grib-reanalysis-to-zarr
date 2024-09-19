@@ -1,3 +1,4 @@
+import hashlib
 import shutil
 import tempfile
 from pathlib import Path
@@ -52,11 +53,7 @@ class DanraZarrSubset(luigi.Task):
         Path(self.output().path).parent.mkdir(exist_ok=True, parents=True)
         FP_TEMP_ROOT.mkdir(exist_ok=True, parents=True)
 
-        # since we're going to be concatenating datasets along the time dimension
-        # we need to ensure that the time dimension is chunked to 1 otherwise
-        # dask will complain about concatenating datasets with different chunking
         rechunk_to = dict(self.rechunk_to)
-        # rechunk_to["time"] = 1
 
         identifier = self.identifier
         with tempfile.TemporaryDirectory(
@@ -91,10 +88,17 @@ class DanraZarrSubset(luigi.Task):
             f"{var_name}_{'_'.join(str(l) for l in levels)}"
             for (var_name, levels) in self.variables.items()
         ]
+        variables_identifier = "_".join(variables_identifier_parts)
+        if len(variables_identifier) > 50:
+            # create a md5 hash of the variables_identifier if it's too long
+            variables_identifier = hashlib.md5(
+                variables_identifier.encode()
+            ).hexdigest()
+
         name_parts = [
             "danra",
             self.level_type,
-            "_".join(variables_identifier_parts),
+            variables_identifier,
             f"{time_to_str(analysis_time.start)}-{time_to_str(analysis_time.stop)}",
         ]
         identifier = ".".join(name_parts)
@@ -126,6 +130,9 @@ class DanraZarrSubsetAggregated(DanraZarrSubset):
         create_child_aggregate = len(t_intervals) > 0
 
         ts = pd.date_range(self.t_start, self.t_end, freq=t_interval, inclusive="both")
+        logger.info(
+            f"Aggregating {len(ts) - 1} intervals, from {self.t_start} to {self.t_start} ({t_interval} interval): {ts}"
+        )
 
         tasks = []
         for t_start, t_end in zip(ts[:-1], ts[1:]):
@@ -155,7 +162,18 @@ class DanraZarrSubsetAggregated(DanraZarrSubset):
                 raise Exception(f"There was an exception opening {inp.path}: {ex}")
             datasets.append(ds)
 
-        ds = xr.concat(datasets, dim="time").chunk(self.rechunk_to)
+        ds = xr.concat(datasets, dim="time")
+
+        rechunk_to = dict(self.rechunk_to)
+        # remove chunking along dimensions not in the dataset
+        for dim in list(rechunk_to.keys()):
+            if dim not in ds.dims:
+                logger.warning(
+                    f"Dimension {dim} not in dataset, will not rechunk along "
+                    "this dimension"
+                )
+                del rechunk_to[dim]
+
         # check that all time increments are the same, this will check for gaps
         # as well as duplicates in the data
         da_dt = ds.time.diff(dim="time")
@@ -165,7 +183,11 @@ class DanraZarrSubsetAggregated(DanraZarrSubset):
                 " Maybe some timesteps are duplicated or missing? Tried to combine"
                 f" datasets from the following paths: {' '.join(map(lambda t: str(t.path), inputs))}"
             )
+
+        ds = ds.chunk(rechunk_to)
+
         self.output().write(ds)
+
         logger.info(f"{self.output().path} done!", flush=True)
 
         if DELETE_INTERMEDIATE_ZARR_FILES:

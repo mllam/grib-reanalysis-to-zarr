@@ -1,3 +1,4 @@
+import datetime
 import shutil
 from pathlib import Path
 
@@ -21,6 +22,10 @@ def _is_listlike(v):
     return isinstance(v, list) or isinstance(v, tuple)
 
 
+def _ordered_set(x):
+    return sorted(set(x), key=x.index)
+
+
 def create_zarr_dataset(
     fp_temp,
     fp_out,
@@ -30,12 +35,17 @@ def create_zarr_dataset(
     variables,
     levels=None,
     level_name_mapping=None,
+    max_memory="128MB",
 ):
     """
     Produce a zarr store with the given variables and levels, rechunked to the given chunk sizes.
 
     Parameters
     ----------
+    analysis_time : datetime.datetime or slice(datetime.datetime, datetime.datetime)
+        The analysis time or interval of analysis times to create a dataset for.
+        NB: when a slice is provided the end time will not be included which ensures
+        we can concatenate subsets over time without having duplicate time values
     fp_out : str
         File path to the output zarr store
     rechunk_to : dict
@@ -61,39 +71,80 @@ def create_zarr_dataset(
     def _get_levels_and_variables():
         # need to match `dict` and `luigi.freezing.FrozenOrderedDict` which both subclass Mapping
         if isinstance(variables, Mapping):
+            # e.g. {'t': [850, 500], 'w': [850, 500, 100]}
             if levels is not None:
                 raise ValueError("if variables is a dict, levels must be None")
+            levels_per_variable = variables
 
-            # group the variables so that we can load them all at once
+            # first, check if all variables are to be extracted on the same levels, in which case we can load them all at once
+            levels_first_variable = _ordered_set(
+                next(iter(levels_per_variable.values()))
+            )
+            if all(
+                levels_first_variable == _ordered_set(var_levels)
+                for var_levels in levels_per_variable.values()
+            ):
+                yield list(levels_first_variable), list(variables.keys())
+                return
+
+            # otherwise group the variables so that we can load all given on the same level at once
             # e.g. {'t': [850, 500], 'w': [850, 500, 100]} -> {850: ['t', 'w'], 500: ['t', 'w'], 100: ['w']}
 
             # first, get a list of all the levels
             all_levels = []
-            for var_name, var_levels in variables.items():
+            for var_name, var_levels in levels_per_variable.items():
                 all_levels.extend(var_levels)
-            all_levels = list(set(all_levels))
+            all_levels = list(_ordered_set(all_levels))
 
             # now, for each level, get the variables that are defined for that level
             for level in all_levels:
                 var_names = []
-                for var_name, var_levels in variables.items():
+                for var_name, var_levels in levels_per_variable.items():
                     if level in var_levels:
                         var_names.append(var_name)
                 yield level, var_names
 
         elif _is_listlike(variables) and _is_listlike(levels):
             for level in levels:
-                yield level, variables
+                yield level, sorted(variables)
         else:
             raise NotImplementedError(variables, levels)
 
     datasets = []
 
+    def _flatten_time_dims(ds_, temp_dim_name="_time_"):
+        """
+        since we're only using analysis time, we can drop the `time` dimension,
+        but we need to take all the analysis times where the time dimension is
+        the same
+        """
+        ds_ = ds_.stack({temp_dim_name: ["time", "analysis_time"]})
+        ds_ = ds_.where(ds_.time == ds_.analysis_time, drop=True)
+        da_times = ds_.analysis_time
+        ds_ = (
+            ds_.reset_index(temp_dim_name)
+            .drop(["time", "analysis_time"])
+            .rename({temp_dim_name: "time"})
+        )
+        ds_["time"] = da_times.values
+        return ds_
+
+    # when providing dmidc with a slice for the `analysis_time` argument it
+    # will return data for the entire time range (i.e from
+    # `analysis_time.start` to and including `analysis_time.stop`)
+    # However, for the concatenation to work without duplicating time-values
+    # further down the pipeline we don't want `analysis_time.stop` to be
+    # included. By subtracking a single second from the end time in the slice
+    # this is avoided
+    analysis_time_excl_end = slice(
+        analysis_time.start, analysis_time.stop - datetime.timedelta(seconds=1)
+    )
+
     for level, var_names in _get_levels_and_variables():
         logger.info(f"loading {var_names} on {level_type} level {level}")
         try:
             ds = dmidc.harmonie.load(
-                analysis_time=analysis_time,
+                analysis_time=analysis_time_excl_end,
                 suite_name="DANRA",
                 data_kind="ANALYSIS",
                 temp_filepath=fp_temp,
@@ -106,14 +157,24 @@ def create_zarr_dataset(
             raise
 
         if level_name_mapping is None:
-            ds.coords["level"] = level
+            if "level" not in ds.coords:
+                raise NotADirectoryError(ds.coords)
+            # doing selection here ensures we get the same order as the levels
+            # were provided in with `level`
+            ds = ds.sel(level=level)
         else:
+            if _is_listlike(level):
+                raise NotImplementedError(level_name_mapping)
+
             for var_name in var_names:
                 da_var = ds[var_name]
                 ds = ds.drop(var_name)
                 da_var.attrs["level"] = level
                 new_var_name = level_name_mapping.format(var_name=var_name, level=level)
                 ds[new_var_name] = da_var
+
+        if all(d in ds.dims for d in ["time", "analysis_time"]):
+            ds = _flatten_time_dims(ds)
 
         datasets.append(ds)
 
@@ -139,12 +200,6 @@ def create_zarr_dataset(
         else:
             raise NotImplementedError(level_type)
 
-    # dmidc returns data for the entire time range including the final
-    # timestep, i.e. [t_start, t_end] rather than [t_start, t_end[
-    # we remove the last timestep here to make it simpler to join subsets
-    # downstream
-    ds = ds.isel(time=slice(None, -1))
-
     # check that all time-steps have the same length, it appears that some
     # output files are sometimes incomplete... we need to check that the source
     # files have been fixed
@@ -156,7 +211,7 @@ def create_zarr_dataset(
         )
 
     mapper = rechunk_and_write(
-        ds=ds, fp_out=fp_out, fp_temp=fp_temp, rechunk_to=rechunk_to
+        ds=ds, fp_out=fp_out, fp_temp=fp_temp, rechunk_to=rechunk_to, max_mem=max_memory
     )
 
     ds_zarr = xr.open_zarr(mapper)
@@ -165,7 +220,7 @@ def create_zarr_dataset(
     logger.info(f"{fp_out} done!", flush=True)
 
 
-def rechunk_and_write(ds, fp_temp, fp_out, rechunk_to):
+def rechunk_and_write(ds, fp_temp, fp_out, rechunk_to, max_mem):
     fs = fsspec.filesystem("file")
     mapper = fs.get_mapper(fp_out)
 
@@ -193,7 +248,7 @@ def rechunk_and_write(ds, fp_temp, fp_out, rechunk_to):
     r = rechunker.rechunk(
         ds,
         target_chunks=target_chunks,
-        max_mem="32GB",
+        max_mem=max_mem,
         target_store=target_store,
         temp_store=fp_temp,
     )

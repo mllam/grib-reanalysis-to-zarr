@@ -42,6 +42,14 @@ PYTHONPATH=`pwd`:$PYTHONPATH pdm run luigi --module danra_to_zarr.pipeline Danra
 
 ```
 
+### Optimizing the workflow while handling total memory usage
+
+Within the pipeline tasks there are two memory hungry steps:
+
+1. Extracting of the initial time-subset of DANRA as a .zarr-dataset from the source GRIB files
+
+2. Aggregating together subsets (which amounts to a concatenation in time)
+
 
 ## Data overview
 

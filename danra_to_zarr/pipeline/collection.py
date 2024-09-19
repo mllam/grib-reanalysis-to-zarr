@@ -15,6 +15,52 @@ from .base import DanraZarrSubsetAggregated, ZarrTarget
 from .config import DATA_COLLECTION, DELETE_INTERMEDIATE_ZARR_FILES, FP_ROOT, VERSION
 from .utils import convert_markdown_to_html
 
+kwargs = {
+    "LoVInDegrees": 25.0,
+    "LaDInDegrees": 56.7,
+    "Latin1InDegrees": 56.7,
+    "Latin2InDegrees": 56.7,
+}
+
+
+def _add_projection_info_to_all_variables(ds):
+    """
+    Add CF-compliant (http://cfconventions.org/cf-conventions/cf-conventions.html#appendix-grid-mappings)
+    projection info by adding a new variable that holds the projection attributes and setting on each variable
+    that this projection applies.
+
+    NOTE: currently gribscan doesn't return the projection information attributes when parsing
+    Harmonie GRIB files. For that reason the projection parameters are hardcoded here. They
+    should be moved in future so that this information is returned by gribscan and set in dmidc
+
+    Parameters
+    ----------
+    ds: xr.Dataset
+        the dataset to add projection info to
+
+    Returns
+    -------
+    ds: xr.Dataset
+        the original dataset with projection information added
+    """
+    ds["lambert_conformal"] = xr.DataArray()
+    ds["lambert_conformal"].attrs = {
+        "grid_mapping_name": "lambert_conformal_conic",
+        "standard_parallel": (kwargs["Latin1InDegrees"], kwargs["Latin2InDegrees"]),
+        "longitude_of_central_meridian": kwargs["LoVInDegrees"],
+        "latitude_of_projection_origin": kwargs["LaDInDegrees"],
+    }
+
+    # XXX: the units also need to be set on the x and y coordinates, this
+    # should be done by dmidc
+    ds["x"].attrs["units"] = "m"
+    ds["y"].attrs["units"] = "m"
+
+    for var_name in ds.data_vars:
+        ds[var_name].attrs["grid_mapping"] = "lambert_conformal"
+
+    return ds
+
 
 class DanraZarrCollection(luigi.Task):
     """
@@ -78,6 +124,8 @@ class DanraZarrCollection(luigi.Task):
             "contact"
         ] = "Leif Denby <lcd@dmi.dk>, Danish Meteorological Institute"
 
+        ds_part = _add_projection_info_to_all_variables(ds=ds_part)
+
         part_output = self.output()
         part_output.path.parent.mkdir(exist_ok=True, parents=True)
         logger.info(
@@ -94,8 +142,12 @@ class DanraZarrCollection(luigi.Task):
             ]:
                 if attr in ds_part[var_name].attrs:
                     del ds_part[var_name].attrs[attr]
-            ds_part[var_name].attrs["long_name"] = ds_part[var_name].attrs.pop("name")
-            ds_part[var_name] = ds_part[var_name]
+
+            var_attrs = ds_part[var_name].attrs
+            if "name" in var_attrs:
+                ds_part[var_name].attrs["long_name"] = ds_part[var_name].attrs.pop(
+                    "name"
+                )
 
         part_output.write(ds_part)
         consolidate_metadata(part_output.path)
@@ -149,7 +201,10 @@ class DanraCompleteZarrCollection(luigi.Task):
 
             if level_dim is not None:
                 N_levels = len(ds_part[level_dim].values)
-                var_names = list(ds_part.data_vars)
+                # projection info variable has size==1 so we can remove it from
+                # the table based on that size
+                var_names = [v for v in list(ds_part.data_vars) if ds_part[v].size != 1]
+
                 N_vars = len(var_names)
                 units = ds_part[level_dim].attrs.get("units", "")
                 indexes = [f"{v} [{units}]" for v in ds_part[level_dim].values]

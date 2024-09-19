@@ -4,6 +4,20 @@
 
 - license (CC-BY-4.0) and contact information
 
+- limit dataset query to `dmidc.harmonie.load(...)` to avoid including timestep at end of interval and thereby reduce loading time
+
+- handle new time-coordinate structure of dmidc wrt DANRA analysis where the returned xr.Dataset has both `analysis_time` and `time` coordinates
+
+- add CF-compliant projection information to all variables (hardcoded for now, but should be parsed from gribscan/dmidc soon)
+
+- add loading of a set of variables sharing levels in single query to `dmidc.harmone.load(...)` to reduce load time
+
+- update to head for dmidc
+
+*fixes*
+
+- ensure coordinate order for vertical coordinates is maintained
+
 
 # v0.5.0rc0
 
