@@ -11,8 +11,8 @@ from loguru import logger
 from zarr.convenience import consolidate_metadata
 
 from ..utils.print_versions import show_versions
-from .base import DanraZarrSubsetAggregated, ZarrTarget
-from .config import DATA_COLLECTION, DELETE_INTERMEDIATE_ZARR_FILES, FP_ROOT, VERSION
+from .base import DanraZarrSubsetAggregated, ZarrTarget, should_delete_intermediate
+from .config import DATA_COLLECTION, FP_ROOT, INTERMEDIATE_TIME_PARTITIONING, VERSION
 from .utils import convert_markdown_to_html
 
 kwargs = {
@@ -87,7 +87,8 @@ class DanraZarrCollection(luigi.Task):
             task = DanraZarrSubsetAggregated(
                 t_start=isodate.parse_date(timespan.start),
                 t_end=isodate.parse_date(timespan.stop),
-                t_intervals=collection_details["intermediate_time_partitioning"],
+                aggregate_name="complete",
+                t_intervals=INTERMEDIATE_TIME_PARTITIONING,
                 variables=level_type_variables["variables"],
                 level_type=level_type,
                 rechunk_to=collection_details["rechunk_to"],
@@ -96,6 +97,10 @@ class DanraZarrCollection(luigi.Task):
             tasks[level_type] = task
 
         return tasks
+
+    @property
+    def aggregate_name(self):
+        return "collection-with-attrs"
 
     def run(self):
         collection_details = DATA_COLLECTION
@@ -152,13 +157,19 @@ class DanraZarrCollection(luigi.Task):
         part_output.write(ds_part)
         consolidate_metadata(part_output.path)
 
-        if DELETE_INTERMEDIATE_ZARR_FILES:
+        if should_delete_intermediate(self.aggregate_name):
             fps_parents = [inp.path for inp in part_inputs.values()]
-            logger.info(f"Deleting input source files: {fps_parents}")
+            logger.info(
+                f"Deleting input source files (for {self.aggregate_name}): {fps_parents}"
+            )
             for fp_parent in fps_parents:
                 shutil.rmtree(fp_parent)
 
     def output(self):
+        # run to check that it is defined for this task whether the child tasks
+        # output should be deleted
+
+        should_delete_intermediate(self.aggregate_name)
         path_root = FP_ROOT / VERSION
         fn = f"{self.part_id}.zarr"
         return ZarrTarget(path_root / fn)

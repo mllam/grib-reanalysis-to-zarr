@@ -11,8 +11,7 @@ import xarray as xr
 from loguru import logger
 
 from ..main import create_zarr_dataset
-from . import logging  # noqa
-from .config import DELETE_INTERMEDIATE_ZARR_FILES, FP_ROOT, FP_TEMP_ROOT
+from .config import DELETE_INTERMEDIATE_ZARR_FILES, FP_TEMP_ROOT, FP_TEMP_ROOT_DEFAULT
 from .utils import time_to_str
 
 
@@ -41,6 +40,7 @@ class DanraZarrSubset(luigi.Task):
 
     t_start = luigi.DateMinuteParameter()
     t_end = luigi.DateMinuteParameter()
+    aggregate_name = luigi.Parameter()
     variables = luigi.DictParameter()
     level_type = luigi.Parameter()
     rechunk_to = luigi.DictParameter()
@@ -51,13 +51,14 @@ class DanraZarrSubset(luigi.Task):
             raise Exception("rechunk_to should contain time, x and y")
 
         Path(self.output().path).parent.mkdir(exist_ok=True, parents=True)
-        FP_TEMP_ROOT.mkdir(exist_ok=True, parents=True)
+        fp_temp_root = FP_TEMP_ROOT_DEFAULT / "rechunker"
+        fp_temp_root.mkdir(exist_ok=True, parents=True)
 
         rechunk_to = dict(self.rechunk_to)
 
         identifier = self.identifier
         with tempfile.TemporaryDirectory(
-            dir=FP_TEMP_ROOT, prefix=identifier
+            dir=fp_temp_root, prefix=identifier
         ) as tempdir:
 
             create_zarr_dataset(
@@ -105,8 +106,15 @@ class DanraZarrSubset(luigi.Task):
         return identifier
 
     def output(self):
+        # run to check that it is defined for this task whether the child tasks
+        # output should be deleted
+        should_delete_intermediate(self.aggregate_name)
+
         fn = f"{self.identifier}.zarr"
-        fp = FP_ROOT / "subset" / fn
+        fp_root = FP_TEMP_ROOT.get(self.aggregate_name, FP_TEMP_ROOT_DEFAULT)
+        fp = fp_root / self.aggregate_name / fn
+
+        logger.info(f"Storing aggregate group '{self.aggregate_name}' in {fp}")
 
         return ZarrTarget(fp)
 
@@ -124,10 +132,11 @@ class DanraZarrSubsetAggregated(DanraZarrSubset):
     t_intervals = luigi.ListParameter()
 
     def requires(self):
-        t_intervals = list(self.t_intervals)
-        t_interval = isodate.parse_duration(t_intervals.pop(-1))
+        t_intervals_remaining = list(self.t_intervals)
+        t_str_interval = t_intervals_remaining.pop(-1)
+        t_interval = isodate.parse_duration(t_str_interval)
 
-        create_child_aggregate = len(t_intervals) > 0
+        create_child_aggregate = len(t_intervals_remaining) > 0
 
         ts = pd.date_range(self.t_start, self.t_end, freq=t_interval, inclusive="both")
         logger.info(
@@ -139,13 +148,14 @@ class DanraZarrSubsetAggregated(DanraZarrSubset):
             kwargs = dict(
                 t_start=t_start,
                 t_end=t_end,
+                aggregate_name=t_str_interval,
                 variables=self.variables,
                 level_type=self.level_type,
                 rechunk_to=self.rechunk_to,
                 level_name_mapping=self.level_name_mapping,
             )
             if create_child_aggregate:
-                task = self.__class__(t_intervals=t_intervals, **kwargs)
+                task = self.__class__(t_intervals=t_intervals_remaining, **kwargs)
             else:
                 task = DanraZarrSubset(**kwargs)
             tasks.append(task)
@@ -190,8 +200,20 @@ class DanraZarrSubsetAggregated(DanraZarrSubset):
 
         logger.info(f"{self.output().path} done!", flush=True)
 
-        if DELETE_INTERMEDIATE_ZARR_FILES:
+        if should_delete_intermediate(self.aggregate_name):
             fps_parents = [inp.path for inp in inputs]
-            logger.info(f"Deleting input source files: {fps_parents}")
+            logger.info(
+                f"Deleting input source files (for {self.aggregate_name}): {fps_parents}"
+            )
             for fp_parent in fps_parents:
                 shutil.rmtree(fp_parent)
+
+
+def should_delete_intermediate(identifier):
+    try:
+        should_delete = DELETE_INTERMEDIATE_ZARR_FILES[identifier]
+    except KeyError:
+        raise Exception(
+            f"Please define whether or not to delete intermediate files for {identifier}"
+        )
+    return should_delete
