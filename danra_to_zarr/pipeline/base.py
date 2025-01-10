@@ -56,6 +56,10 @@ class DanraZarrSubset(luigi.Task):
 
         rechunk_to = dict(self.rechunk_to)
 
+        logger.info(
+            f"Storing aggregate group '{self.aggregate_name}' in {self.output().path}"
+        )
+
         identifier = self.identifier
         with tempfile.TemporaryDirectory(
             dir=fp_temp_root, prefix=identifier
@@ -114,8 +118,6 @@ class DanraZarrSubset(luigi.Task):
         fp_root = FP_TEMP_ROOT.get(self.aggregate_name, FP_TEMP_ROOT_DEFAULT)
         fp = fp_root / self.aggregate_name / fn
 
-        logger.info(f"Storing aggregate group '{self.aggregate_name}' in {fp}")
-
         return ZarrTarget(fp)
 
 
@@ -167,7 +169,7 @@ class DanraZarrSubsetAggregated(DanraZarrSubset):
         inputs = self.input()
         for i, inp in enumerate(inputs):
             try:
-                ds = inp.open().reset_encoding()
+                ds = inp.open().drop_encoding()
             except Exception as ex:
                 raise Exception(f"There was an exception opening {inp.path}: {ex}")
             datasets.append(ds)

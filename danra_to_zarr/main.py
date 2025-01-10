@@ -129,41 +129,69 @@ def create_zarr_dataset(
         ds_["time"] = da_times.values
         return ds_
 
-    # when providing dmidc with a slice for the `analysis_time` argument it
-    # will return data for the entire time range (i.e from
-    # `analysis_time.start` to and including `analysis_time.stop`)
-    # However, for the concatenation to work without duplicating time-values
-    # further down the pipeline we don't want `analysis_time.stop` to be
-    # included. By subtracking a single second from the end time in the slice
-    # this is avoided
-    analysis_time_excl_end = slice(
-        analysis_time.start, analysis_time.stop - datetime.timedelta(seconds=1)
-    )
+    if analysis_time.start != analysis_time.stop:
+        # when providing dmidc with a slice for the `analysis_time` argument it
+        # will return data for the entire time range (i.e from
+        # `analysis_time.start` to and including `analysis_time.stop`)
+        # However, for the concatenation to work without duplicating time-values
+        # further down the pipeline we don't want `analysis_time.stop` to be
+        # included. By subtracking a single second from the end time in the slice
+        # this is avoided
+        analysis_time_extraction = slice(
+            analysis_time.start, analysis_time.stop - datetime.timedelta(seconds=1)
+        )
+    else:
+        analysis_time_extraction = analysis_time
 
     for level, var_names in _get_levels_and_variables():
         logger.info(f"loading {var_names} on {level_type} level {level}")
+
+        if level_type == "CONSTANTS":
+            # this is a hack, but I've used the "level-type" called "CONSTANTS"
+            # here to indicate that I want to load a constant field
+            level_type = None
+            data_kind = "CONSTANTS"
+            time_range_indicator = None
+            # when reading constants dmidc doesn't allow for a list of levels currently
+            if len(level) == 1:
+                level = level[0]
+        else:
+            data_kind = "ANALYSIS"
+            time_range_indicator = "instantaneous"
+
         try:
             ds = dmidc.harmonie.load(
-                analysis_time=analysis_time_excl_end,
+                analysis_time=analysis_time_extraction,
                 suite_name="DANRA",
-                data_kind="ANALYSIS",
+                data_kind=data_kind,
                 temp_filepath=fp_temp,
                 short_name=var_names,
                 level_type=level_type,
                 level=level,
+                time_range_type=time_range_indicator,
             )
         except Exception as ex:
             logger.error(ex)
             raise
 
-        if level_name_mapping is None:
+        if data_kind == "CONSTANTS":
+            # no mapping from levels to separate variables for the constant fields
+            # But we don't want to use `z` shortname since that often refers to
+            # just altitude, `orography` is clearer
+            if "z" in ds.data_vars:
+                ds = ds.rename(dict(z="orography"))
+        elif level_name_mapping is None:
+            # this means we are not mapping level (coordinate) values to
+            # individual variables
             if "level" not in ds.coords:
                 raise NotADirectoryError(ds.coords)
             # doing selection here ensures we get the same order as the levels
             # were provided in with `level`
             ds = ds.sel(level=level)
         else:
-            if _is_listlike(level):
+            if _is_listlike(level) and len(level) != 1:
+                # for now I've only implemented turning a single level into a
+                # variable
                 raise NotImplementedError(level_name_mapping)
 
             for var_name in var_names:
@@ -178,7 +206,9 @@ def create_zarr_dataset(
 
         datasets.append(ds)
 
-    if level_name_mapping is None:
+    if data_kind == "CONSTANTS":
+        ds = datasets[0]
+    elif level_name_mapping is None:
         ds = xr.concat(datasets, dim="level")
     else:
         ds = xr.merge(datasets)
@@ -197,18 +227,21 @@ def create_zarr_dataset(
             ds = ds.rename(dict(level="altitude"))
         elif level_type in ["entireAtmosphere", "nominalTop", "surface"]:
             pass
+        elif data_kind == "CONSTANTS" and level_type is None:
+            pass
         else:
             raise NotImplementedError(level_type)
 
-    # check that all time-steps have the same length, it appears that some
-    # output files are sometimes incomplete... we need to check that the source
-    # files have been fixed
-    da_dt = ds.time.diff(dim="time")
-    if not da_dt.min() == da_dt.max():
-        raise Exception(
-            "Not all time increments are the same in the produced zarr dataset."
-            " Maybe some of the loaded GRIB files were incomplete?"
-        )
+    if data_kind != "CONSTANTS":
+        # check that all time-steps have the same length, it appears that some
+        # output files are sometimes incomplete... we need to check that the source
+        # files have been fixed
+        da_dt = ds.time.diff(dim="time")
+        if not da_dt.min() == da_dt.max():
+            raise Exception(
+                "Not all time increments are the same in the produced zarr dataset."
+                " Maybe some of the loaded GRIB files were incomplete?"
+            )
 
     mapper = rechunk_and_write(
         ds=ds, fp_out=fp_out, fp_temp=fp_temp, rechunk_to=rechunk_to, max_mem=max_memory
