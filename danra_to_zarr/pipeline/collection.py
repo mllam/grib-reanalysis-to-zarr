@@ -412,10 +412,10 @@ class DanraCompleteZarrCollection(luigi.Task):
 
                 N_vars = len(var_names)
                 units = ds_part[level_dim].attrs.get("units", "")
-                indexes = [f"{v} [{units}]" for v in ds_part[level_dim].values]
+                level_values = ds_part[level_dim].values
                 df = pd.DataFrame(
                     columns=var_names,
-                    index=indexes,
+                    index=level_values,
                     data=np.ones((N_levels, N_vars), dtype=bool),
                 )
                 df = df.map(lambda v: "✓" if v is True else "")
@@ -428,14 +428,29 @@ class DanraCompleteZarrCollection(luigi.Task):
 
                 df = df.rename(columns=cols_new)
 
+                # put variables as rows and levels as columns
                 df = df.T
-                df = df[sorted(df.columns)]
+                df = df[sorted(df.columns, reverse=level_dim == "pressure")]
+                # add units to colummns for each level
+                df = df.rename(columns={v: f"{v} [{units}]" for v in level_values})
 
                 text_markdown += df.to_markdown()
                 text_markdown += "\n\n"
             else:
                 var_names = list(ds_part.data_vars)
-                var_names = sorted(var_names, key=lambda v: ds_part[v].level)
+                var_names.remove("danra_projection")
+
+                def get_sortval(da):
+                    for attr in ["level", "altitude", "pressure"]:
+                        val = da.attrs.get(attr)
+                        if val is not None:
+                            if isinstance(val, list):
+                                return val[0]
+                            return val
+                    return -1
+
+                var_names = sorted(var_names, key=lambda v: get_sortval(ds_part[v]))
+
                 text_markdown += ", ".join(
                     f"<abbr title='{ds_part[v].long_name}'>{v}</abbr>"
                     for v in var_names

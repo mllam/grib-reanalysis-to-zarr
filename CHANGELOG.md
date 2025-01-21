@@ -1,6 +1,18 @@
 # Unreleased
 
+*changed*
+
+- time period extended to cover full 33 years (1990-09-01 to 2023-09-01)
+
+- extended to include all vertical levels, speficially all pressure levels (1000hPa to 100hPa) and height levels (30m to 500m)
+
 *added*
+
+- land-sea mask (nammed `lsm`) and orography altitude as geopotential of surface (nammed `orography`) to single-levels dataset
+
+- CF-compliant projection information using CRS WKT string set as the `danra_projection` grid-mapping variable
+
+- CF standard names (with matching canonical units) for all variables where these are known
 
 - license (CC-BY-4.0) and contact information
 

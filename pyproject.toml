@@ -1,6 +1,6 @@
 [project]
 name = "danra_to_zarr"
-version = "0.5.0rc2"
+version = "0.5.0"
 description = "Process DANRA GRIB files to Zarr"
 authors = [
     {name = "Leif Denby", email = "lcd@dmi.dk"},
@@ -12,7 +12,8 @@ dependencies = [
     "dask[distributed]>=2024.1.1",
     "metpy>=1.6.2",
     "markdown2>=2.4.13",
-    "dmidc[harmonie-grib] @ git+https://gitlab.dmi.dk/nwp/data-catalog",
+    "dmidc[harmonie-grib]>=0.5.0",
+    "cfunits>=3.3.7",
 ]
 requires-python = ">=3.9"
 readme = "README.md"
@@ -24,11 +25,18 @@ analysis = [
     "matplotlib>=3.8.2",
     "ipykernel>=6.28.0",
 ]
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.isort]
+profile = "black"
+
 [tool.pdm.dev-dependencies]
 dev = [
     "ipykernel>=6.27.1",
     "nb-black @ git+https://github.com/leifdenby/nb_black/",
-    "rich>=13.7.0",
+    "rich>=13.9.4",
     "tabulate>=0.9.0",
     "nbconvert>=7.12.0",
     "pre-commit>=3.6.0",
@@ -39,10 +47,3 @@ dev = [
 name = "dmi-nexus"
 url = "https://nexus.dmi.dk/repository/pypi-snapshots/simple"
 verify_ssl = false
-
-[build-system]
-requires = ["pdm-backend"]
-build-backend = "pdm.backend"
-
-[tool.isort]
-profile = "black"

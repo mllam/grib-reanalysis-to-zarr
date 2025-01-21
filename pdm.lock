@@ -5,7 +5,7 @@
 groups = ["default", "analysis", "dev"]
 strategy = []
 lock_version = "4.5.0"
-content_hash = "sha256:389d67bb8910658399884fdc40a3ec5d725409ced772e4567b41939ade1c7f5f"
+content_hash = "sha256:63718207712244de388f43f3733300c0e29bec20c6cfec9292b7c9eafff95b51"
 
 [[metadata.targets]]
 requires_python = ">=3.9"
@@ -349,7 +349,7 @@ files = [
 
 [[package]]
 name = "cfgrib"
-version = "0.9.14.0"
+version = "0.9.14.1"
 requires_python = ">=3.7"
 summary = "Python interface to map GRIB files to the NetCDF Common Data Model following the CF Convention using ecCodes."
 dependencies = [
@@ -359,8 +359,8 @@ dependencies = [
     "numpy",
 ]
 files = [
-    {file = "cfgrib-0.9.14.0-py3-none-any.whl", hash = "sha256:ce9fb8a667167fee38ae935f6b445e87f0e8915b9af76e3843c182d2979a756a"},
-    {file = "cfgrib-0.9.14.0.tar.gz", hash = "sha256:2b9a1e6bd47397e585f878ffd8aaac5969f6c9a448da767c700917b89c275bb2"},
+    {file = "cfgrib-0.9.14.1-py3-none-any.whl", hash = "sha256:0714ece262231b0d4006fc7ba5a04f287a9fd42473ac3f6ed4703eb2e7e92161"},
+    {file = "cfgrib-0.9.14.1.tar.gz", hash = "sha256:a6e66e8a3d8f9823d3eef0c2c6ebca602d5bcc324f0baf4f3d13f68b0b40501e"},
 ]
 
 [[package]]
@@ -408,6 +408,20 @@ files = [
     {file = "cftime-1.6.4-cp39-cp39-musllinux_1_2_x86_64.whl", hash = "sha256:f9acc272df1022f24fe7dbe9de43fa5d8271985161df14549e4d8d28c90dc9ea"},
     {file = "cftime-1.6.4-cp39-cp39-win_amd64.whl", hash = "sha256:e8467b6fbf8dbfe0be8c04d61180765fdd3b9ab0fe51313a0bbf87e63634a3d8"},
     {file = "cftime-1.6.4.tar.gz", hash = "sha256:e325406193758a7ed67308deb52e727782a19e384e183378e7ff62098be0aedc"},
+]
+
+[[package]]
+name = "cfunits"
+version = "3.3.7"
+requires_python = ">=3.6"
+summary = "A python interface to UNIDATA's UDUNITS-2 package with CF extensions "
+dependencies = [
+    "cftime>=1.5.0",
+    "numpy>=1.15",
+    "packaging>=20.0",
+]
+files = [
+    {file = "cfunits-3.3.7.tar.gz", hash = "sha256:e271ae2c01765cc437e7eefd802846894367179e3208653ab9b520ade48286d6"},
 ]
 
 [[package]]
@@ -724,10 +738,8 @@ files = [
 
 [[package]]
 name = "dmidc"
-version = "0.4.1"
+version = "0.5.0"
 requires_python = ">=3.9"
-git = "https://gitlab.dmi.dk/nwp/data-catalog"
-revision = "b3659b0c8de4836979d562a251a9032c7a397b64"
 summary = "DMI NWP group data catalog"
 dependencies = [
     "fparse>=1.20.1",
@@ -742,24 +754,30 @@ dependencies = [
     "xarray>=2023.8.0",
     "zarr>=2.16.1",
 ]
+files = [
+    {file = "dmidc-0.5.0-py3-none-any.whl", hash = "sha256:179f11017ab84b24c95bcba2321168ef57469a4dda138baad834fd127f21e2a7"},
+    {file = "dmidc-0.5.0.tar.gz", hash = "sha256:60db137b8ffbadba016d88386cdd486730b08b45886489bea71237640e4ea237"},
+]
 
 [[package]]
 name = "dmidc"
-version = "0.4.1"
+version = "0.5.0"
 extras = ["harmonie-grib"]
 requires_python = ">=3.9"
-git = "https://gitlab.dmi.dk/nwp/data-catalog"
-revision = "b3659b0c8de4836979d562a251a9032c7a397b64"
 summary = "DMI NWP group data catalog"
 dependencies = [
     "bidict>=0.22.1",
-    "dmidc @ git+https://gitlab.dmi.dk/nwp/data-catalog",
-    "eccodes>=1.6.1",
+    "dmidc==0.5.0",
+    "eccodes==2.37.0",
     "fsspec>=2023.9.2",
     "gribscan @ git+https://github.com/simonkamuk/gribscan@harmonie-rotated-and-lambert-grids",
     "h5py>=3.9.0",
     "loguru>=0.7.2",
     "pyyaml>=6.0.1",
+]
+files = [
+    {file = "dmidc-0.5.0-py3-none-any.whl", hash = "sha256:179f11017ab84b24c95bcba2321168ef57469a4dda138baad834fd127f21e2a7"},
+    {file = "dmidc-0.5.0.tar.gz", hash = "sha256:60db137b8ffbadba016d88386cdd486730b08b45886489bea71237640e4ea237"},
 ]
 
 [[package]]
@@ -774,7 +792,7 @@ files = [
 
 [[package]]
 name = "eccodes"
-version = "1.7.1"
+version = "2.37.0"
 summary = "Python interface to the ecCodes GRIB and BUFR decoder/encoder"
 dependencies = [
     "attrs",
@@ -783,8 +801,20 @@ dependencies = [
     "numpy",
 ]
 files = [
-    {file = "eccodes-1.7.1-py3-none-any.whl", hash = "sha256:feef7a17e8c2535e41460de704c03ab1d14f013ffbac233a88dda937672b1173"},
-    {file = "eccodes-1.7.1.tar.gz", hash = "sha256:d3c7e9bab779d35b624cfd7b3331de111602cba6a6f6368efcc12407f30b2697"},
+    {file = "eccodes-2.37.0-cp310-cp310-macosx_13_0_arm64.whl", hash = "sha256:5cdb8c8e113db2e284a43391603a6e1a1ae69b7cd4063258b2e8a23538d91f90"},
+    {file = "eccodes-2.37.0-cp310-cp310-macosx_13_0_x86_64.whl", hash = "sha256:a213138088e93cf2c17c20aafa0890d7c99d042c494836553d6b4416fd4a5235"},
+    {file = "eccodes-2.37.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:4c4f980ac4664fb8324d5195dbba833c3b45513c4451791038721af1784f46f3"},
+    {file = "eccodes-2.37.0-cp311-cp311-macosx_13_0_arm64.whl", hash = "sha256:28b6b059e5bc156e3b6814f93b291aba9c290502652fabf638972656e6ccae25"},
+    {file = "eccodes-2.37.0-cp311-cp311-macosx_13_0_x86_64.whl", hash = "sha256:ccd454d7ceecde90a092d104af9065ad7503a339b46b37719f09d9420845ee6f"},
+    {file = "eccodes-2.37.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3b963e5f9a945fa8bca18b66bdfa32cee513a6b080effd967daf4e10ba3f741f"},
+    {file = "eccodes-2.37.0-cp312-cp312-macosx_13_0_arm64.whl", hash = "sha256:4a107567b55fa0188b7215ea0e5d78680dcd73b6b80596d38c15587fae141713"},
+    {file = "eccodes-2.37.0-cp312-cp312-macosx_13_0_x86_64.whl", hash = "sha256:1fbfad23f5f31e5f578f6a9bb46b8b5fdf6e09d033e42a600cc2212278bb7c07"},
+    {file = "eccodes-2.37.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:76d3a7dbaf5590ade2f5c45ba6d2567a7b01864a407f8be4a06bdfc9a5e2e30b"},
+    {file = "eccodes-2.37.0-cp39-cp39-macosx_13_0_arm64.whl", hash = "sha256:f43c3f90be33a2362400a589d3d086eba37f118109c2d431c735b25c5c769d88"},
+    {file = "eccodes-2.37.0-cp39-cp39-macosx_13_0_x86_64.whl", hash = "sha256:964e57ac46f9b01d3ab54acdb4cfae44bbb4c24ee9d5d76eed43892c8e5dabdf"},
+    {file = "eccodes-2.37.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:1c0b5cec6dac9d2985345e79a6d29ae7e27d0a8e5b9fcd0c571081aa0f1c76f0"},
+    {file = "eccodes-2.37.0-py3-none-any.whl", hash = "sha256:434e9e832d965f23141effa28a6997c635243d4d7cb8afb7ff453c6627014fc1"},
+    {file = "eccodes-2.37.0.tar.gz", hash = "sha256:ce9e11dba82dbdfee8803a26d03fe200307b23eac08e20c029c3e84b84757305"},
 ]
 
 [[package]]
@@ -963,7 +993,7 @@ name = "gribscan"
 version = "0.0.6"
 git = "https://github.com/simonkamuk/gribscan"
 ref = "harmonie-rotated-and-lambert-grids"
-revision = "917152e22c6ee2292d9c82ec39b709c311fc4801"
+revision = "524f829405c576f2266276dc0a2ca669fcad8926"
 summary = "create indices for GRIB files and provide an xarray interface"
 dependencies = [
     "cfgrib>=0.9.9.0",
@@ -975,30 +1005,39 @@ dependencies = [
 
 [[package]]
 name = "h5py"
-version = "3.11.0"
-requires_python = ">=3.8"
+version = "3.12.1"
+requires_python = ">=3.9"
 summary = "Read and write HDF5 files from Python"
 dependencies = [
-    "numpy>=1.17.3",
+    "numpy>=1.19.3",
 ]
 files = [
-    {file = "h5py-3.11.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:1625fd24ad6cfc9c1ccd44a66dac2396e7ee74940776792772819fc69f3a3731"},
-    {file = "h5py-3.11.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:c072655ad1d5fe9ef462445d3e77a8166cbfa5e599045f8aa3c19b75315f10e5"},
-    {file = "h5py-3.11.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:77b19a40788e3e362b54af4dcf9e6fde59ca016db2c61360aa30b47c7b7cef00"},
-    {file = "h5py-3.11.0-cp310-cp310-win_amd64.whl", hash = "sha256:ef4e2f338fc763f50a8113890f455e1a70acd42a4d083370ceb80c463d803972"},
-    {file = "h5py-3.11.0-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:bbd732a08187a9e2a6ecf9e8af713f1d68256ee0f7c8b652a32795670fb481ba"},
-    {file = "h5py-3.11.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:75bd7b3d93fbeee40860fd70cdc88df4464e06b70a5ad9ce1446f5f32eb84007"},
-    {file = "h5py-3.11.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:52c416f8eb0daae39dabe71415cb531f95dce2d81e1f61a74537a50c63b28ab3"},
-    {file = "h5py-3.11.0-cp311-cp311-win_amd64.whl", hash = "sha256:083e0329ae534a264940d6513f47f5ada617da536d8dccbafc3026aefc33c90e"},
-    {file = "h5py-3.11.0-cp312-cp312-macosx_10_9_x86_64.whl", hash = "sha256:a76cae64080210389a571c7d13c94a1a6cf8cb75153044fd1f822a962c97aeab"},
-    {file = "h5py-3.11.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:f3736fe21da2b7d8a13fe8fe415f1272d2a1ccdeff4849c1421d2fb30fd533bc"},
-    {file = "h5py-3.11.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:aa6ae84a14103e8dc19266ef4c3e5d7c00b68f21d07f2966f0ca7bdb6c2761fb"},
-    {file = "h5py-3.11.0-cp312-cp312-win_amd64.whl", hash = "sha256:21dbdc5343f53b2e25404673c4f00a3335aef25521bd5fa8c707ec3833934892"},
-    {file = "h5py-3.11.0-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:f4e025e852754ca833401777c25888acb96889ee2c27e7e629a19aee288833f0"},
-    {file = "h5py-3.11.0-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:6c4b760082626120031d7902cd983d8c1f424cdba2809f1067511ef283629d4b"},
-    {file = "h5py-3.11.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:67462d0669f8f5459529de179f7771bd697389fcb3faab54d63bf788599a48ea"},
-    {file = "h5py-3.11.0-cp39-cp39-win_amd64.whl", hash = "sha256:d9c944d364688f827dc889cf83f1fca311caf4fa50b19f009d1f2b525edd33a3"},
-    {file = "h5py-3.11.0.tar.gz", hash = "sha256:7b7e8f78072a2edec87c9836f25f34203fd492a4475709a18b417a33cfb21fa9"},
+    {file = "h5py-3.12.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:2f0f1a382cbf494679c07b4371f90c70391dedb027d517ac94fa2c05299dacda"},
+    {file = "h5py-3.12.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:cb65f619dfbdd15e662423e8d257780f9a66677eae5b4b3fc9dca70b5fd2d2a3"},
+    {file = "h5py-3.12.1-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:3b15d8dbd912c97541312c0e07438864d27dbca857c5ad634de68110c6beb1c2"},
+    {file = "h5py-3.12.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:59685fe40d8c1fbbee088c88cd4da415a2f8bee5c270337dc5a1c4aa634e3307"},
+    {file = "h5py-3.12.1-cp310-cp310-win_amd64.whl", hash = "sha256:577d618d6b6dea3da07d13cc903ef9634cde5596b13e832476dd861aaf651f3e"},
+    {file = "h5py-3.12.1-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:ccd9006d92232727d23f784795191bfd02294a4f2ba68708825cb1da39511a93"},
+    {file = "h5py-3.12.1-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:ad8a76557880aed5234cfe7279805f4ab5ce16b17954606cca90d578d3e713ef"},
+    {file = "h5py-3.12.1-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:1473348139b885393125126258ae2d70753ef7e9cec8e7848434f385ae72069e"},
+    {file = "h5py-3.12.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:018a4597f35092ae3fb28ee851fdc756d2b88c96336b8480e124ce1ac6fb9166"},
+    {file = "h5py-3.12.1-cp311-cp311-win_amd64.whl", hash = "sha256:3fdf95092d60e8130ba6ae0ef7a9bd4ade8edbe3569c13ebbaf39baefffc5ba4"},
+    {file = "h5py-3.12.1-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:06a903a4e4e9e3ebbc8b548959c3c2552ca2d70dac14fcfa650d9261c66939ed"},
+    {file = "h5py-3.12.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:7b3b8f3b48717e46c6a790e3128d39c61ab595ae0a7237f06dfad6a3b51d5351"},
+    {file = "h5py-3.12.1-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:050a4f2c9126054515169c49cb900949814987f0c7ae74c341b0c9f9b5056834"},
+    {file = "h5py-3.12.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:5c4b41d1019322a5afc5082864dfd6359f8935ecd37c11ac0029be78c5d112c9"},
+    {file = "h5py-3.12.1-cp312-cp312-win_amd64.whl", hash = "sha256:e4d51919110a030913201422fb07987db4338eba5ec8c5a15d6fab8e03d443fc"},
+    {file = "h5py-3.12.1-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:513171e90ed92236fc2ca363ce7a2fc6f2827375efcbb0cc7fbdd7fe11fecafc"},
+    {file = "h5py-3.12.1-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:59400f88343b79655a242068a9c900001a34b63e3afb040bd7cdf717e440f653"},
+    {file = "h5py-3.12.1-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:d3e465aee0ec353949f0f46bf6c6f9790a2006af896cee7c178a8c3e5090aa32"},
+    {file = "h5py-3.12.1-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ba51c0c5e029bb5420a343586ff79d56e7455d496d18a30309616fdbeed1068f"},
+    {file = "h5py-3.12.1-cp313-cp313-win_amd64.whl", hash = "sha256:52ab036c6c97055b85b2a242cb540ff9590bacfda0c03dd0cf0661b311f522f8"},
+    {file = "h5py-3.12.1-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:d2b8dd64f127d8b324f5d2cd1c0fd6f68af69084e9e47d27efeb9e28e685af3e"},
+    {file = "h5py-3.12.1-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:4532c7e97fbef3d029735db8b6f5bf01222d9ece41e309b20d63cfaae2fb5c4d"},
+    {file = "h5py-3.12.1-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:6fdf6d7936fa824acfa27305fe2d9f39968e539d831c5bae0e0d83ed521ad1ac"},
+    {file = "h5py-3.12.1-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:84342bffd1f82d4f036433e7039e241a243531a1d3acd7341b35ae58cdab05bf"},
+    {file = "h5py-3.12.1-cp39-cp39-win_amd64.whl", hash = "sha256:62be1fc0ef195891949b2c627ec06bc8e837ff62d5b911b6e42e38e0f20a897d"},
+    {file = "h5py-3.12.1.tar.gz", hash = "sha256:326d70b53d31baa61f00b8aa5f95c2fcb9621a3ee8365d770c551a13dbbcbfdf"},
 ]
 
 [[package]]
@@ -2512,17 +2551,17 @@ files = [
 
 [[package]]
 name = "rich"
-version = "13.7.0"
-requires_python = ">=3.7.0"
+version = "13.9.4"
+requires_python = ">=3.8.0"
 summary = "Render rich text, tables, progress bars, syntax highlighting, markdown and more to the terminal"
 dependencies = [
     "markdown-it-py>=2.2.0",
     "pygments<3.0.0,>=2.13.0",
-    "typing-extensions<5.0,>=4.0.0; python_version < \"3.9\"",
+    "typing-extensions<5.0,>=4.0.0; python_version < \"3.11\"",
 ]
 files = [
-    {file = "rich-13.7.0-py3-none-any.whl", hash = "sha256:6da14c108c4866ee9520bbffa71f6fe3962e193b7da68720583850cd4548e235"},
-    {file = "rich-13.7.0.tar.gz", hash = "sha256:5cb5123b5cf9ee70584244246816e9114227e0b98ad9176eede6ad54bf5403fa"},
+    {file = "rich-13.9.4-py3-none-any.whl", hash = "sha256:6049d5e6ec054bf2779ab3358186963bac2ea89175919d699e378b99738c2a90"},
+    {file = "rich-13.9.4.tar.gz", hash = "sha256:439594978a49a09530cff7ebc4b5c7103ef57baf48d5ea3184f21d9a2befa098"},
 ]
 
 [[package]]
