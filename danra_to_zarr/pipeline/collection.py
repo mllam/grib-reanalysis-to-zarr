@@ -7,6 +7,7 @@ import isodate
 import luigi
 import numpy as np
 import pandas as pd
+import parse
 import xarray as xr
 from loguru import logger
 from zarr.convenience import consolidate_metadata
@@ -122,26 +123,50 @@ def _units_equal(u1, u2):
     return cfunits.units.Units(u1).equals(cfunits.units.Units(u2))
 
 
-def _add_standard_names_and_check_units(ds, level_type):
+def _add_standard_names_and_check_units(ds, level_type, level_name_mapping):
     for var_name in list(ds.data_vars):
-        standard_name = config.CF_STANDARD_NAME_TO_DANRA_NAME[level_type].get(var_name)
+        if level_name_mapping is not None:
+            # XXX: this is a hack, but because I've split individual levels
+            # into separate variables I need to extract the variable name from
+            # that new name
+            name_parts = parse.parse(level_name_mapping, var_name)
+            orig_var_name = name_parts.named["var_name"]
+        else:
+            orig_var_name = var_name
+
+        standard_name = config.CF_STANDARD_NAME_TO_DANRA_NAME[level_type].get(
+            orig_var_name
+        )
         if standard_name is None:
             logger.warning(f"No standard name found for {var_name}")
             continue
 
         expected_units = config.CF_CANONICAL_UNITS[standard_name]
-        ds[var_name].attrs["standard_name"] = standard_name
-        units = ds[var_name].units
+        if expected_units is None:
+            pass
+        else:
+            ds[var_name].attrs["standard_name"] = standard_name
+            units = ds[var_name].units
 
-        # the land-sea mask units are "(0 - 1)" by default, this isn't a valid unit...
-        if units == "(0 - 1)":
-            units = "1"
-            ds[var_name].attrs["units"] = units
+            # the land-sea mask units are "(0 - 1)" by default, this isn't a valid unit...
+            if units == "(0 - 1)":
+                units = "1"
+                ds[var_name].attrs["units"] = units
 
-        if not _units_equal(units, expected_units):
-            raise Exception(
-                f"Units missmatch for {var_name}, {units} != {expected_units} "
-            )
+            if (
+                standard_name == "brightness_temperature_at_cloud_top"
+                and orig_var_name == "psct"
+                and units == "-"
+            ):
+                # the units are actually Kelvin I think, judging from the values
+                units = "K"
+                ds[var_name].attrs["units"] = units
+
+            if not _units_equal(units, expected_units):
+                raise Exception(
+                    f"Units missmatch for {var_name}, {standard_name}"
+                    f" {units} != {expected_units} "
+                )
 
     # XXX: the units also need to be set on the x and y coordinates, this
     # should be done by dmidc
@@ -257,17 +282,26 @@ class DanraZarrCollection(luigi.Task):
 
         part_id = self.part_id
         part_inputs = self.input()
+        part_config = collection_details["parts"][self.part_id]
 
         part_contents = {}
         for level_type, level_type_inputs in part_inputs.items():
             ds_level_type = level_type_inputs.open()
-            _add_standard_names_and_check_units(ds=ds_level_type, level_type=level_type)
+            level_name_mapping = part_config[level_type].get("level_name_mapping")
+            _add_standard_names_and_check_units(
+                ds=ds_level_type,
+                level_type=level_type,
+                level_name_mapping=level_name_mapping,
+            )
+
             for var_name in ds_level_type.data_vars:
                 da_var = ds_level_type[var_name]
                 da_var.attrs["level_type"] = level_type
                 part_contents[var_name] = da_var
 
-        ds_part = xr.Dataset(part_contents)
+        ds_part = xr.Dataset()
+        for var_name, da in part_contents.items():
+            ds_part[var_name] = da
 
         ds_part.attrs["description"] = collection_description
 

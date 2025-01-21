@@ -152,7 +152,7 @@ DATA_COLLECTION = dict(
                         # "vgst": [10],
                     },
                 },
-                level_name_mapping="{var_name}{level}m",
+                level_name_mapping="{var_name}{level:d}m",
             ),
             entireAtmosphere=dict(
                 variables={v: [0] for v in "pwat cape cb ct grpl".split()},
@@ -185,12 +185,13 @@ CF_CANONICAL_UNITS = dict(
     low_type_cloud_area_fraction="1",
     medium_type_cloud_area_fraction="1",
     high_type_cloud_area_fraction="1",
+    cloud_area_fraction="1",
     atmosphere_convective_available_potential_energy_wrt_surface="J kg-1",
     cloud_base_altitude="m",
     cloud_top_altitude="m",
     atmosphere_mass_content_of_graupel="kg m-2",
     brightness_temperature_at_cloud_top="K",
-    lwe_thickness_of_snowfall_amount="m",
+    snowfall_amount="kg m-2",
     visibility_in_air="m",
     air_pressure="Pa",
     upward_air_velocity="m s-1",
@@ -198,6 +199,8 @@ CF_CANONICAL_UNITS = dict(
     air_pressure_at_mean_sea_level="Pa",
     surface_geopotential="m**2 s**-2",
     land_binary_mask="1",
+    atmosphere_boundary_layer_thickness="m",
+    predominant_precipitation_type_at_surface=None,  # doens't have any canonical units
 )
 
 CF_EXTRA_FIELDS = dict(
@@ -228,7 +231,7 @@ CF_STANDARD_NAME_TO_DANRA_NAME = dict(
         hcc="high_type_cloud_area_fraction",
         mcc="medium_type_cloud_area_fraction",
         lcc="low_type_cloud_area_fraction",
-        tcc="cloud_cover",
+        tcc="cloud_area_fraction",
         icei=None,  # XXX: not sure that what this is
         mld="atmosphere_boundary_layer_thickness",
         pres="air_pressure",
@@ -239,7 +242,7 @@ CF_STANDARD_NAME_TO_DANRA_NAME = dict(
         pscw=None,  # doesn't appear to have an equivalent in CF conventions
         pstb=None,  # doesn't appear to have an equivalent in CF conventions
         pstbc=None,  # doesn't appear to have an equivalent in CF conventions
-        sf="lwe_thickness_of_snowfall_amount",
+        sf="snowfall_amount",
         vis="visibility_in_air",
         xhail=None,  # XXX: I think this might be "hail_fall_amount" but I'm not sure about the accumulation window
         # "rain",
