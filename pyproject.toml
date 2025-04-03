@@ -1,49 +1,16 @@
 [project]
-name = "danra_to_zarr"
-version = "0.5.0"
-description = "Process DANRA GRIB files to Zarr"
-authors = [
-    {name = "Leif Denby", email = "lcd@dmi.dk"},
-]
+name = "grib_reanalysis_to_zarr"
+version = "0.1.0"
+description = "Convert GRIB reanalysis files to Zarr with indexing and reference-based workflows"
 dependencies = [
-    "rechunker>=0.5.2",
-    "loguru>=0.7.2",
-    "luigi>=3.4.0",
-    "dask[distributed]>=2024.1.1",
-    "metpy>=1.6.2",
-    "markdown2>=2.4.13",
-    "dmidc[harmonie-grib]>=0.5.0",
-    "cfunits>=3.3.7",
+    "xarray",
+    "isodate",
+    "pyyaml",
+    "zarr",
+    "snakemake",
+    "pulp<2.8.0",
 ]
-requires-python = ">=3.9"
-readme = "README.md"
-license = {text = "MIT"}
+requires-python = ">=3.10"
 
-[project.optional-dependencies]
-analysis = [
-    "cartopy>=0.22.0",
-    "matplotlib>=3.8.2",
-    "ipykernel>=6.28.0",
-]
-[build-system]
-requires = ["pdm-backend"]
-build-backend = "pdm.backend"
-
-[tool.isort]
-profile = "black"
-
-[tool.pdm.dev-dependencies]
-dev = [
-    "ipykernel>=6.27.1",
-    "nb-black @ git+https://github.com/leifdenby/nb_black/",
-    "rich>=13.9.4",
-    "tabulate>=0.9.0",
-    "nbconvert>=7.12.0",
-    "pre-commit>=3.6.0",
-    "ipdb>=0.13.13",
-]
-
-[[tool.pdm.source]]
-name = "dmi-nexus"
-url = "https://nexus.dmi.dk/repository/pypi-snapshots/simple"
-verify_ssl = false
+[project.scripts]
+grib-reanalysis-to-zarr = "grib_reanalysis_to_zarr.cli:run_pipeline"
