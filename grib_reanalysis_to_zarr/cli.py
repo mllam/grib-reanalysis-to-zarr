@@ -1,14 +1,17 @@
 import argparse
-import subprocess
-import yaml
-from pathlib import Path
-from datetime import datetime, timedelta
-from isodate import parse_duration
 import os
+import subprocess
+from datetime import datetime
+from pathlib import Path
+
+import yaml
+from isodate import parse_duration
+
 
 def parse_config(config_path):
     with open(config_path) as f:
         return yaml.safe_load(f)
+
 
 def build_valid_interval_ids(config):
     start = datetime.fromisoformat(config["start"])
@@ -24,13 +27,22 @@ def build_valid_interval_ids(config):
         t += step
     return interval_ids
 
+
 def run_pipeline():
     parser = argparse.ArgumentParser(description="Run GRIB to Zarr indexing pipeline")
     parser.add_argument("--config", required=True, help="Path to config.yaml")
     parser.add_argument("--cores", default="all", help="Number of cores to use")
-    parser.add_argument("--timestamp", help="Start time of interval to process (e.g. 20250301T0100)")
-    parser.add_argument("--collection", help="Optional collection name (e.g. height_levels)")
-    parser.add_argument("--dry-run", action="store_true", help="Simulate the workflow without executing tasks")
+    parser.add_argument(
+        "--timestamp", help="Start time of interval to process (e.g. 20250301T0100)"
+    )
+    parser.add_argument(
+        "--collection", help="Optional collection name (e.g. height_levels)"
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Simulate the workflow without executing tasks",
+    )
 
     args = parser.parse_args()
     config_path = Path(args.config).resolve()
@@ -44,9 +56,12 @@ def run_pipeline():
 
     cmd = [
         "snakemake",
-        "--snakefile", str(snakefile_path),
-        "--configfile", str(config_path),
-        "--cores", args.cores,
+        "--snakefile",
+        str(snakefile_path),
+        "--configfile",
+        str(config_path),
+        "--cores",
+        args.cores,
     ]
 
     if args.dry_run:
@@ -58,7 +73,9 @@ def run_pipeline():
         except ValueError:
             raise ValueError(f"Invalid timestamp format: {args.timestamp}")
         end_time = start_time + step
-        interval_id = f"{start_time.strftime('%Y%m%dT%H%M')}-{end_time.strftime('%Y%m%dT%H%M')}"
+        interval_id = (
+            f"{start_time.strftime('%Y%m%dT%H%M')}-{end_time.strftime('%Y%m%dT%H%M')}"
+        )
         if interval_id not in valid_intervals:
             raise ValueError(
                 f"Interval '{interval_id}' not in configured time range.\n"
@@ -72,6 +89,7 @@ def run_pipeline():
                 cmd.append(f"zarr/{col}/{interval_id}.zarr")
 
     subprocess.run(cmd, check=True)
+
 
 if __name__ == "__main__":
     run_pipeline()
