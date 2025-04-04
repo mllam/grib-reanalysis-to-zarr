@@ -1,0 +1,82 @@
+start: "1981-01-01T00:00"
+end: "2018-01-01T00:00"
+step: "PT3H"
+
+rechunk_to:
+  time: 256
+  x: 263
+  y: 295
+  pressure: 1
+  altitude: 1
+
+grib_index_root: "indexes"
+file_finder: "find_gribs.py"
+
+data_collection:
+  height_levels:
+    - level_type: heightAboveGround
+      variables:
+        t: [30, 50, 75, 100, 150, 200, 250, 300, 500]
+        r: [30, 50, 75, 100, 150, 200, 250, 300, 500]
+        u: [30, 50, 75, 100, 150, 200, 250, 300, 500]
+        v: [30, 50, 75, 100, 150, 200, 250, 300, 500]
+
+  pressure_levels:
+    - level_type: isobaricInhPa
+      variables:
+        z: [1000, 950, 925, 900, 850, 800, 700, 600, 500, 400, 300, 250, 200, 100]
+        t: [1000, 950, 925, 900, 850, 800, 700, 600, 500, 400, 300, 250, 200, 100]
+        u: [1000, 950, 925, 900, 850, 800, 700, 600, 500, 400, 300, 250, 200, 100]
+        v: [1000, 950, 925, 900, 850, 800, 700, 600, 500, 400, 300, 250, 200, 100]
+        tw: [1000, 950, 925, 900, 850, 800, 700, 600, 500, 400, 300, 250, 200, 100]
+        r: [1000, 950, 925, 900, 850, 800, 700, 600, 500, 400, 300, 250, 200, 100]
+        ciwc: [1000, 950, 925, 900, 850, 800, 700, 600, 500, 400, 300, 250, 200, 100]
+        cwat: [1000, 950, 925, 900, 850, 800, 700, 600, 500, 400, 300, 250, 200, 100]
+
+  single_levels:
+    - level_type: heightAboveGround
+      variables:
+        hcc: [0]
+        lcc: [0]
+        mcc: [0]
+        tcc: [0]
+        icei: [0]
+        lwavr: [0]
+        mld: [0]
+        pres: [0]
+        prtp: [0]
+        psct: [0]
+        pscw: [0]
+        pstb: [0]
+        pstbc: [0]
+        sf: [0]
+        swavr: [0]
+        vis: [0]
+        xhail: [0]
+
+    - level_type: heightAboveGround
+      variables:
+        t: [0, 2]
+        r: [2]
+        u: [10]
+        v: [10]
+      level_name_mapping: "{var_name}{level:d}m"
+
+    - level_type: entireAtmosphere
+      variables:
+        pwat: [0]
+        cape: [0]
+        cb: [0]
+        ct: [0]
+        grpl: [0]
+      level_name_mapping: "{var_name}_column"
+
+    - level_type: heightAboveSea
+      variables:
+        pres: [0]
+      level_name_mapping: "{var_name}_seasurface"
+
+    - level_type: CONSTANTS
+      variables:
+        lsm: [0]
+        z: [0]
