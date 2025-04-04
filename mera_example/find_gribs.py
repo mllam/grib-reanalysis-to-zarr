@@ -19,6 +19,7 @@ def find_files_for_time_interval(t_start: datetime, t_end: datetime) -> list[str
         for hours in range(4):
             filename = filename_format.format(start=t, 
                                               leveltype=leveltype,
+                                              level=level,
                                               timerangeindicator=timerangeindicator,
                                               suffix=suffix)
             paths.append(root_path / filename)
