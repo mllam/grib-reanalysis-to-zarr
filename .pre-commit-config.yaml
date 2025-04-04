@@ -3,6 +3,7 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.0.1
     hooks:
+      - id: check-yaml
       - id: trailing-whitespace
       - id: end-of-file-fixer
   # isort should run before black as black sometimes tweaks the isort output

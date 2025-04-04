@@ -1,0 +1,264 @@
+# ----------------------------
+# Load config from config file (path passed via CONFIG_FILE env)
+# ----------------------------
+
+import yaml
+from isodate import parse_duration
+from datetime import datetime
+from pathlib import Path
+import importlib
+
+config_file_path = Path(os.environ["CONFIG_FILE"]).resolve()
+with open(config_file_path) as f:
+    config = yaml.safe_load(f)
+
+config_dir = config_file_path.parent
+
+step = parse_duration(config["step"])
+start = datetime.fromisoformat(config["start"])
+end = datetime.fromisoformat(config["end"])
+grib_index_root = Path(config["grib_index_root"])
+data_collection = config["data_collection"]
+
+# Determine config file path (set externally via CLI env)
+config_file_path = Path(os.environ["CONFIG_FILE"]).resolve()
+config_dir = config_file_path.parent
+
+file_finder_path = (config_dir / config["file_finder"]).resolve()
+grib_cleanup_script = config.get("grib_cleanup_script")
+if grib_cleanup_script:
+    grib_cleanup_script = (config_dir / grib_cleanup_script).resolve()
+
+# ----------------------------
+# Build interval IDs
+# ----------------------------
+
+interval_ids = []
+interval_map = {}
+
+t = start
+while t < end:
+    ts_start = t.strftime("%Y%m%dT%H%M")
+    ts_end = (t + step).strftime("%Y%m%dT%H%M")
+    interval_id = f"{ts_start}-{ts_end}"
+
+    interval_ids.append(interval_id)
+    interval_map[interval_id] = {
+        "start": t,
+        "end": t + step,
+        "ts_start": ts_start,
+        "ts_end": ts_end
+    }
+
+    t += step
+
+# ----------------------------
+# Load GRIB finder function
+# ----------------------------
+
+spec = importlib.util.spec_from_file_location("user_grib_finder_script", file_finder_path)
+user_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(user_module)
+find_files_for_time_interval = user_module.find_files_for_time_interval
+
+# Load GRIB cleanup script if provided
+cleanup_gribs = None
+if grib_cleanup_script:
+    cleanup_spec = importlib.util.spec_from_file_location("grib_cleanup", grib_cleanup_script)
+    cleanup_module = importlib.util.module_from_spec(cleanup_spec)
+    cleanup_spec.loader.exec_module(cleanup_module)
+    cleanup_gribs = cleanup_module.cleanup_gribs
+
+# ----------------------------
+# Build GRIB file map per interval
+# ----------------------------
+
+ts_map = {}
+valid_interval_ids = []
+
+for interval_id, info in interval_map.items():
+    grib_files = find_files_for_time_interval(info["start"], info["end"])
+    if grib_files:
+        ts_map[interval_id] = grib_files
+    else:
+        print(f"[WARN] No GRIB files found for interval {interval_id}")
+
+
+collections = list(data_collection.keys())
+
+# ----------------------------
+# Rules
+# ----------------------------
+
+rule all:
+    input:
+        expand("zarr_combined/{collection}.zarr", collection=collections)
+
+rule index_gribs:
+    input:
+        lambda wildcards: ts_map[wildcards.interval_id]
+    output:
+        touch("indexes/{interval_id}/.done")
+    run:
+        import gribscan
+
+        interval_id = wildcards.interval_id
+        Path(output[0]).parent.mkdir(parents=True, exist_ok=True)
+
+        for fp_gribfile in map(Path, input):
+            fp_index = grib_index_root / f"{fp_gribfile.as_posix()}.index"
+            fp_index.parent.mkdir(parents=True, exist_ok=True)
+            gribscan.write_index(gribfile=fp_gribfile, idxfile=fp_index)
+
+        Path(output[0]).touch()
+
+# rule generate_refs:
+#     input:
+#         idx_done = "indexes/{interval_id}/.done"
+#     output:
+#         touch("refs/{interval_id}/.done")
+#     run:
+#         import gribscan
+
+#         interval_id = wildcards.interval_id
+#         ts_start = interval_map[interval_id]["ts_start"]
+#         grib_files = ts_map[interval_id]
+#         fps_index = [grib_index_root / f"{Path(g).as_posix()}.index" for g in grib_files]
+
+#         ref_output_dir = Path(f"refs/{interval_id}")
+#         ref_output_dir.mkdir(parents=True, exist_ok=True)
+
+#         magician = gribscan.magician.HarmonieMagician()
+#         refs = gribscan.grib_magic(
+#             filenames=fps_index,
+#             magician=magician,
+#             global_prefix=f"{ref_output_dir}/"
+#         )
+
+#         for level_type, ref in refs.items():
+#             fp_ref = ref_output_dir / f"{level_type}.json"
+#             with open(fp_ref, "w") as f:
+#                 json.dump(ref, f)
+
+#         Path(output[0]).touch()
+
+# rule create_zarr:
+#     input:
+#         ref_done = "refs/{interval_id}/.done",
+#         refs = lambda wildcards: [
+#             f"refs/{wildcards.interval_id}/{part['level_type']}.json"
+#             for part in data_collection[wildcards.collection]
+#         ]
+#     output:
+#         directory("zarr/{collection}/{interval_id}.zarr")
+#     run:
+#         interval_id = wildcards.interval_id
+#         ts_start = interval_map[interval_id]["ts_start"]
+#         ts_end = interval_map[interval_id]["ts_end"]
+#         collection = wildcards.collection
+#         output_path = Path(output[0])
+#         output_path.parent.mkdir(parents=True, exist_ok=True)
+
+#         datasets = []
+#         for part in data_collection[collection]:
+#             level_type = part["level_type"]
+#             variables = part["variables"]
+#             level_name_mapping = part.get("level_name_mapping")
+#             variable_rename = part.get("variable_rename", {})
+
+#             fp_ref = Path(f"refs/{interval_id}/{level_type}.json")
+#             if not fp_ref.exists():
+#                 continue
+
+#             ds_level_type = xr.open_zarr(f"reference::{fp_ref}", engine="zarr", consolidated=False)
+
+#             # Time-step validation
+#             n_timesteps = ds_level_type.dims.get("time", 0)
+#             expected_chunk_size = config.get("rechunk_to", {}).get("time")
+#             if expected_chunk_size and n_timesteps != expected_chunk_size:
+#                 suggested_step_seconds = (step.total_seconds() / n_timesteps) * expected_chunk_size
+#                 suggested_step = duration_isoformat(timedelta(seconds=suggested_step_seconds))
+#                 raise ValueError(
+#                     f"[ERROR] {fp_ref} contains {n_timesteps} timesteps, but rechunk_to.time = {expected_chunk_size}.\n"
+#                     f"Either set rechunk_to.time = {n_timesteps}, or set step = '{suggested_step}'"
+#                 )
+
+#             ds_extracted = xr.Dataset()
+
+#             for var_name, levels in variables.items():
+#                 if var_name not in ds_level_type:
+#                     continue
+#                 da = ds_level_type[var_name]
+
+#                 if levels is None:
+#                     new_name = level_name_mapping.format(var_name=var_name) if level_name_mapping else var_name
+#                     ds_extracted[new_name] = da
+#                 elif level_name_mapping is None:
+#                     ds_extracted[var_name] = da.sel(level=levels)
+#                 else:
+#                     for level in levels:
+#                         new_name = level_name_mapping.format(var_name=var_name, level=level)
+#                         ds_extracted[new_name] = da.sel(level=level)
+
+#                 if "grid_mapping" in da.attrs:
+#                     ds_extracted[da.attrs["grid_mapping"]] = ds_level_type[da.attrs["grid_mapping"]]
+
+#             # Apply variable renaming
+#             for old_name, new_name in variable_rename.items():
+#                 if old_name in ds_extracted:
+#                     ds_extracted = ds_extracted.rename({old_name: new_name})
+
+#             if "level" in ds_extracted.dims:
+#                 if level_type in ["heightAboveGround", "heightAboveSea"]:
+#                     ds_extracted = ds_extracted.rename({"level": "altitude"})
+#                 elif level_type == "isobaricInhPa":
+#                     ds_extracted = ds_extracted.rename({"level": "pressure"})
+#                 else:
+#                     raise NotImplementedError(f"Unhandled level type: {level_type}")
+
+#             datasets.append(ds_extracted)
+
+#         if not datasets:
+#             raise ValueError(f"No datasets extracted for {collection}/{interval_id}")
+
+#         merged = xr.merge(datasets)
+#         merged.to_zarr(output_path, mode="w")
+
+#         # Optional GRIB cleanup step
+#         if cleanup_gribs is not None:
+#             print(f"[INFO] Running GRIB cleanup script for interval {interval_id}")
+#             cleanup_gribs(ts_map[interval_id])
+
+# rule merge_collection:
+#     input:
+#         lambda wildcards: expand(
+#             "zarr/{collection}/{interval_id}.zarr",
+#             collection=[wildcards.collection],
+#             interval_id=valid_interval_ids
+#         )
+#     output:
+#         directory("zarr_combined/{collection}.zarr")
+#     run:
+#         import xarray as xr
+#         ds = xr.concat([
+#             xr.open_zarr(path, chunks={}) for path in input
+#         ], dim="time")
+
+#         rechunk_to = config.get("rechunk_to", {})
+#         for d in ds.dims:
+#             if d in rechunk_to and rechunk_to[d] > len(ds[d]):
+#                 warnings.warn(
+#                     f"Reducing chunk size for {d} from {rechunk_to[d]} to {len(ds[d])}"
+#                 )
+#                 rechunk_to[d] = len(ds[d])
+
+#         encoding = {
+#             var: {dim: rechunk_to.get(dim, ds.sizes[dim]) for dim in ds[var].dims}
+#             for var in ds.coords | ds.data_vars
+#         }
+
+#         ds.encoding = {}
+#         for var in ds.data_vars:
+#             ds[var].encoding = {}
+
+#         ds.to_zarr(output[0], mode="w", encoding=encoding)
